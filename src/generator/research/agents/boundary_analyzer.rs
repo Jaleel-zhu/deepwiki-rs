@@ -37,7 +37,8 @@ impl StepForwardAgent for BoundaryAnalyzer {
                 DataSource::DEPENDENCY_ANALYSIS,
                 DataSource::ResearchResult(AgentType::SystemContextResearcher.to_string()),
             ],
-            optional_sources: vec![DataSource::CONFLUENCE_PAGES],
+            // Use API and deployment docs for boundary analysis
+            optional_sources: vec![DataSource::knowledge_categories(vec!["api", "deployment"])],
         }
     }
 
@@ -52,7 +53,7 @@ Your task is to identify and analyze based on the provided boundary-related code
 3. Router Routes - page router routes, URL paths, route parameters
 4. Integration Suggestions - best practices and example code
 
-You may have access to API documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Cross-reference code endpoints with documented API specifications
 - Validate authentication and authorization mechanisms

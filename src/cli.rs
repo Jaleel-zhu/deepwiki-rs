@@ -99,7 +99,7 @@ pub struct Args {
 /// CLI subcommands
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Sync external knowledge sources (Confluence, etc.)
+    /// Sync external knowledge sources (local docs, etc.)
     SyncKnowledge {
         /// Configuration file path
         #[arg(short, long)]

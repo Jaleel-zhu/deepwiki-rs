@@ -31,7 +31,8 @@ impl StepForwardAgent for ArchitectureEditor {
                 DataSource::ResearchResult(ResearchAgentType::ArchitectureResearcher.to_string()),
                 DataSource::ResearchResult(ResearchAgentType::WorkflowResearcher.to_string()),
             ],
-            optional_sources: vec![DataSource::CONFLUENCE_PAGES],
+            // Use architecture, deployment, database and ADR docs
+            optional_sources: vec![DataSource::knowledge_categories(vec!["architecture", "deployment", "database", "adr"])],
         }
     }
 
@@ -46,7 +47,7 @@ impl StepForwardAgent for ArchitectureEditor {
 4. **Communication Skills**: Express complex technical architectures in a clear and understandable manner
 
 ## External Knowledge Integration:
-You may have access to existing architecture documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Incorporate established architectural principles and design decisions
 - Cross-reference implementation findings with documented architecture

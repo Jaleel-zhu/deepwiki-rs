@@ -31,7 +31,8 @@ impl StepForwardAgent for WorkflowEditor {
                 DataSource::ResearchResult(ResearchAgentType::WorkflowResearcher.to_string()),
                 DataSource::CODE_INSIGHTS,
             ],
-            optional_sources: vec![DataSource::CONFLUENCE_PAGES],
+            // Use workflow docs for workflow documentation
+            optional_sources: vec![DataSource::knowledge_categories(vec!["workflow", "architecture"])],
         }
     }
 
@@ -48,7 +49,7 @@ Your task is to write a complete, in-depth, and detailed workflow document title
 4. **Technical Documentation Skills**: Express complex workflows in a clear and understandable manner
 
 ## External Knowledge Integration:
-You may have access to business process documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Incorporate documented business process flows and terminology
 - Cross-reference code workflows with documented business requirements

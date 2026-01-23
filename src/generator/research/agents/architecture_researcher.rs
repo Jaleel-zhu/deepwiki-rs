@@ -32,7 +32,8 @@ impl StepForwardAgent for ArchitectureResearcher {
             optional_sources: vec![
                 DataSource::PROJECT_STRUCTURE,
                 DataSource::DEPENDENCY_ANALYSIS,
-                DataSource::CONFLUENCE_PAGES,
+                // Use architecture, deployment, database and ADR docs for architecture analysis
+                DataSource::knowledge_categories(vec!["architecture", "deployment", "database", "adr"]),
             ],
         }
     }
@@ -42,7 +43,7 @@ impl StepForwardAgent for ArchitectureResearcher {
             system_prompt:
                 r#"You are a professional software architecture analyst, analyze system architecture based on research reports, output project architecture research documentation.
 
-You may have access to existing architecture documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Validate code structure against documented architecture patterns
 - Cross-reference implementation with architectural decision records (ADRs)

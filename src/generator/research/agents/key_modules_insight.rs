@@ -42,7 +42,8 @@ impl StepForwardAgent for KeyModulesInsight {
                 DataSource::ResearchResult(AgentType::SystemContextResearcher.to_string()),
                 DataSource::ResearchResult(AgentType::DomainModulesDetector.to_string()),
             ],
-            optional_sources: vec![DataSource::CONFLUENCE_PAGES],
+            // Use architecture and database docs for module insights
+            optional_sources: vec![DataSource::knowledge_categories(vec!["architecture", "database"])],
         }
     }
 
@@ -50,7 +51,7 @@ impl StepForwardAgent for KeyModulesInsight {
         PromptTemplate {
             system_prompt: r#"You are a software development expert. Based on the information provided by the user, investigate the technical details of core modules.
 
-You may have access to component documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Reference documented component responsibilities and interfaces
 - Validate implementation against documented design patterns

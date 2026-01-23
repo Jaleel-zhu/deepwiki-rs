@@ -40,7 +40,8 @@ impl StepForwardAgent for BoundaryEditor {
                 DataSource::PROJECT_STRUCTURE,
                 DataSource::CODE_INSIGHTS,
                 DataSource::README_CONTENT,
-                DataSource::CONFLUENCE_PAGES,
+                // Use API and deployment docs for boundary documentation
+                DataSource::knowledge_categories(vec!["api", "deployment"]),
             ],
         }
     }
@@ -50,7 +51,7 @@ impl StepForwardAgent for BoundaryEditor {
             system_prompt: r#"You are a professional software interface documentation expert, focused on generating clear, detailed boundary interface documentation. Your task is to write an interface documentation with the title `Boundary Interfaces` based on the provided research report.
 
 ## External Knowledge Integration:
-You may have access to API documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Cross-reference code interfaces with documented API specifications
 - Use established endpoint naming and versioning conventions

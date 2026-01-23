@@ -30,7 +30,8 @@ impl StepForwardAgent for SystemContextResearcher {
             required_sources: vec![DataSource::PROJECT_STRUCTURE, DataSource::CODE_INSIGHTS],
             optional_sources: vec![
                 DataSource::README_CONTENT,
-                DataSource::CONFLUENCE_PAGES,  // Include external knowledge from Confluence
+                // Use architecture and ADR docs for system context analysis
+                DataSource::knowledge_categories(vec!["architecture", "adr"]),
             ],
         }
     }
@@ -46,7 +47,7 @@ Your task is to analyze and determine based on the provided project information:
 4. External system interactions
 5. System boundary definition
 
-You may have access to existing architecture documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available, use this documentation to enhance your analysis with established business context and architectural decisions.
 Validate code findings against documented architecture and identify any gaps or inconsistencies.
 

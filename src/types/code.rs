@@ -103,59 +103,79 @@ pub struct CodeComplexity {
 #[serde(rename_all = "lowercase")]
 pub enum CodePurpose {
     /// Project execution entry
+    #[serde(alias = "Project execution entry")]
     Entry,
     /// Intelligent Agent
+    #[serde(alias = "Intelligent Agent")]
     Agent,
     /// Frontend UI page
+    #[serde(alias = "Frontend UI page")]
     Page,
     /// Frontend UI component
+    #[serde(alias = "Frontend UI component")]
     Widget,
     /// Code module for implementing specific logical functionality
+    #[serde(alias = "feature", alias = "specific_feature", alias = "specific-feature", alias = "Code module for implementing specific logical functionality")]
     SpecificFeature,
     /// Data type or model
+    #[serde(alias = "Data type or model")]
     Model,
     /// Program internal interface definition
+    #[serde(alias = "Program internal interface definition")]
     Types,
     /// Functional tool code for specific scenarios
+    #[serde(alias = "Functional tool code for specific scenarios")]
     Tool,
     /// Common, basic utility functions and classes, providing low-level auxiliary functions unrelated to business logic
+    #[serde(alias = "Common, basic utility functions and classes, providing low-level auxiliary functions unrelated to business logic")]
     Util,
     /// Configuration
-    #[serde(alias = "configuration")]
+    #[serde(alias = "configuration", alias = "Configuration")]
     Config,
     /// Middleware
+    #[serde(alias = "Middleware")]
     Middleware,
     /// Plugin
+    #[serde(alias = "Plugin")]
     Plugin,
     /// Router in frontend or backend system
+    #[serde(alias = "Router in frontend or backend system")]
     Router,
     /// Database component
+    #[serde(alias = "Database component")]
     Database,
     /// Service API for external calls, providing calling capabilities based on HTTP, RPC, IPC and other protocols.
+    #[serde(alias = "Service API for external calls, providing calling capabilities based on HTTP, RPC, IPC and other protocols.")]
     Api,
     /// Controller component in MVC architecture, responsible for handling business logic
+    #[serde(alias = "Controller component in MVC architecture, responsible for handling business logic")]
     Controller,
     /// Service component in MVC architecture, responsible for handling business rules
+    #[serde(alias = "Service component in MVC architecture, responsible for handling business rules")]
     Service,
     /// Collection of related code (functions, classes, resources) with clear boundaries and responsibilities
-        Module,
+    #[serde(alias = "Collection of related code (functions, classes, resources) with clear boundaries and responsibilities")]
+    Module,
     /// Dependency library
-    #[serde(alias = "library", alias = "package")]
+    #[serde(alias = "library", alias = "package", alias = "Dependency library")]
     Lib,
     /// Test component
-    #[serde(alias = "testing", alias = "tests")]
+    #[serde(alias = "testing", alias = "tests", alias = "Test component")]
     Test,
     /// Documentation component
-    #[serde(alias = "documentation", alias = "docs")]
+    #[serde(alias = "documentation", alias = "docs", alias = "Documentation component")]
     Doc,
     /// Data Access Layer component
+    #[serde(alias = "Data Access Layer component")]
     Dao,
     /// Context component
+    #[serde(alias = "Context component")]
     Context,
-    /// command-line interface (CLI) commandsx or message/request handlers
+    /// command-line interface (CLI) commands or message/request handlers
+    #[serde(alias = "command-line interface (CLI) commands or message/request handlers", alias = "command-line interface (CLI) commands or message/request handlers")]
     Command,
     /// Other uncategorized or unknown
-    #[serde(alias = "unknown", alias = "misc", alias = "miscellaneous")]
+    #[serde(alias = "unknown", alias = "misc", alias = "miscellaneous", alias = "Other uncategorized or unknown")]
     Other,
 }
 

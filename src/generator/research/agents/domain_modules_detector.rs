@@ -37,7 +37,8 @@ impl StepForwardAgent for DomainModulesDetector {
             ],
             optional_sources: vec![
                 DataSource::PROJECT_STRUCTURE,
-                DataSource::CONFLUENCE_PAGES,
+                // Use architecture and database docs for domain analysis
+                DataSource::knowledge_categories(vec!["architecture", "database"]),
             ],
         }
     }
@@ -46,7 +47,7 @@ impl StepForwardAgent for DomainModulesDetector {
         PromptTemplate {
             system_prompt: r#"You are a professional software architecture analyst, specializing in identifying domain architecture and modules in projects based on the provided information and research materials.
 
-You may have access to business domain documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Use established business domain terminology and glossaries
 - Align module identification with documented domain boundaries

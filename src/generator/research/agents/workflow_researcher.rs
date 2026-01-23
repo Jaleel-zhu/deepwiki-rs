@@ -31,7 +31,8 @@ impl StepForwardAgent for WorkflowResearcher {
                 DataSource::ResearchResult(AgentType::DomainModulesDetector.to_string()),
                 DataSource::CODE_INSIGHTS
             ],
-            optional_sources: vec![DataSource::CONFLUENCE_PAGES],
+            // Use workflow docs for business process analysis
+            optional_sources: vec![DataSource::knowledge_categories(vec!["workflow", "architecture"])],
         }
     }
     
@@ -39,7 +40,7 @@ impl StepForwardAgent for WorkflowResearcher {
         PromptTemplate {
             system_prompt: r#"Analyze the project's core functional workflows, focusing from a functional perspective without being limited to excessive technical details.
 
-You may have access to business process documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Cross-reference code workflows with documented business processes
 - Use established process terminology and flow descriptions

@@ -31,7 +31,8 @@ impl StepForwardAgent for OverviewEditor {
             ],
             optional_sources: vec![
                 DataSource::README_CONTENT,
-                DataSource::CONFLUENCE_PAGES,
+                // Use architecture and ADR docs for overview
+                DataSource::knowledge_categories(vec!["architecture", "adr"]),
             ],
         }
     }
@@ -43,7 +44,7 @@ impl StepForwardAgent for OverviewEditor {
 Your task is to write a complete, in-depth, detailed, and easy-to-read C4 SystemContext document titled `Project Overview` based on the provided system context research report and domain module analysis results.
 
 ## External Knowledge Integration:
-You may have access to existing system overview documentation from external sources (e.g., Confluence).
+You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:
 - Incorporate established business context and objectives
 - Reference documented stakeholders and user personas

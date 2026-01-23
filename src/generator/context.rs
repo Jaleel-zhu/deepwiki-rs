@@ -60,28 +60,33 @@ impl GeneratorContext {
         let memory = self.memory.read().await;
         memory.get_usage_stats()
     }
-
-    /// Load external knowledge (Confluence, Jira, etc.)
-    pub async fn load_external_knowledge(&self) -> Option<String> {
+    
+    /// Load external knowledge for multiple categories
+    pub async fn load_external_knowledge_by_categories(
+        &self,
+        categories: &[&str],
+        agent_filter: Option<&str>,
+    ) -> Option<String> {
         use crate::integrations::KnowledgeSyncer;
         
         match KnowledgeSyncer::new(self.config.clone()) {
             Ok(syncer) => {
-                match syncer.load_cached_knowledge() {
-                    Ok(Some(knowledge)) => {
-                        let lang = self.config.target_language.display_name();
-                        println!("📚 Loaded external knowledge base ({})", lang);
-                        Some(knowledge)
+                let mut combined = String::new();
+                let mut found_any = false;
+                
+                for category in categories {
+                    if let Ok(Some(knowledge)) = syncer.load_cached_knowledge_by_category(category, agent_filter) {
+                        combined.push_str(&knowledge);
+                        combined.push_str("\n\n");
+                        found_any = true;
                     }
-                    Ok(None) => {
-                        let lang = self.config.target_language.display_name();
-                        println!("ℹ️  No external knowledge cache found for language: {}", lang);
-                        None
-                    }
-                    Err(e) => {
-                        eprintln!("⚠️  Failed to load external knowledge: {}", e);
-                        None
-                    }
+                }
+                
+                if found_any {
+                    println!("📚 Loaded knowledge from categories: {:?}", categories);
+                    Some(combined)
+                } else {
+                    None
                 }
             }
             Err(e) => {
