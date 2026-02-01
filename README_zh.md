@@ -51,6 +51,8 @@
 - 自定义模板系统支持文档输出样式定制
 
 ### 高级特性
+- **外部知识挂载** - 支持挂载 PDF、Markdown、SQL 等外部文档作为知识源，增强分析能力
+- **数据库文档生成** - 自动分析 SQL 项目并生成包含 ER 图的数据库架构文档
 - Git 历史分析以追踪架构演进
 - 代码元素与文档之间的交叉引用
 - 带图示与示例的交互式文档
@@ -388,6 +390,114 @@ deepwiki-rs -p ./src --disable-preset-tools --llm-api-base-url <base> --llm_api_
 deepwiki-rs --config <config-file> --max-tokens 4000 --temperature 0.7 --max-parallels 4 --no-cache --force-regenerate
 ```
 
+## 📚 外部知识挂载
+
+Litho 支持挂载外部文档作为知识源，将业务上下文和架构决策融入生成的文档中。
+
+### 支持的文档类型
+- **PDF** - 架构图、设计文档
+- **Markdown** - 技术文档、架构决策记录(ADR)
+- **SQL** - 数据库架构文件
+- **YAML/JSON** - API 规范 (OpenAPI)、配置文件
+- **Text** - 纯文本文档
+
+### 知识分类
+文档按分类组织，可定向传递给特定智能体：
+- `architecture` - 系统架构和 C4 模型文档
+- `database` - 数据库架构、ERD、数据模型文档
+- `api` - API 规范和接口文档
+- `deployment` - 基础设施和 DevOps 文档
+- `adr` - 架构决策记录
+- `workflow` - 业务流程和工作流文档
+- `general` - 通用未分类文档
+
+### 同步知识命令
+```sh
+# 同步外部知识源（处理并缓存本地文档）
+deepwiki-rs sync-knowledge
+
+# 强制同步（即使缓存未过期）
+deepwiki-rs sync-knowledge --force
+```
+
+### 配置示例 (litho.toml)
+```toml
+[knowledge.local_docs]
+enabled = true
+cache_dir = ".litho/cache/knowledge/local_docs"
+watch_for_changes = true
+
+# 大文档分块默认配置
+[knowledge.local_docs.default_chunking]
+enabled = true
+max_chunk_size = 8000
+chunk_overlap = 200
+strategy = "semantic"  # 选项: semantic, paragraph, fixed
+min_size_for_chunking = 10000
+
+# 架构文档分类
+[[knowledge.local_docs.categories]]
+name = "architecture"
+description = "系统架构文档"
+paths = [
+    "docs/architecture/**/*.md",
+    "docs/design/**/*.pdf"
+]
+target_agents = [
+    "SystemContextResearcher",
+    "ArchitectureResearcher",
+    "ArchitectureEditor"
+]
+
+# 数据库文档分类
+[[knowledge.local_docs.categories]]
+name = "database"
+description = "数据库架构文档"
+paths = [
+    "docs/database/**/*.md",
+    "docs/schema/**/*.sql"
+]
+target_agents = [
+    "ArchitectureResearcher",
+    "DomainModulesDetector",
+    "KeyModulesInsight"
+]
+```
+
+## 🗄️ 数据库文档
+
+Litho 自动分析 SQL 数据库项目 (`.sqlproj`) 和 SQL 文件，生成完整的数据库文档，包括：
+
+- **数据库项目** - SQL Server 项目结构
+- **数据表** - 架构、字段、数据类型、约束、主键
+- **视图** - 视图定义和引用的表
+- **存储过程** - 参数、操作、访问的表
+- **函数** - 标量函数和表值函数
+- **表关系** - 外键和隐式引用（含 ER 图）
+- **数据流** - ETL 操作和数据流转模式
+
+### 数据库分析特性
+```
+📊 Database code distribution: Projects(2) SQL Files(15) DAO(3)
+✅ Database overview analysis completed:
+   - Database projects: 2 items
+   - Tables: 12 items
+   - Views: 5 items
+   - Stored procedures: 8 items
+   - Functions: 3 items
+   - Table relationships: 6 items
+   - Data flows: 4 items
+   - Confidence: 8.5/10
+```
+
+### 生成的数据库文档
+数据库文档会自动包含在输出中，文件名为 `6.数据库概览.md`，内容包括：
+- 汇总统计表
+- 详细的表结构及字段定义
+- Mermaid ER 关系图
+- 存储过程文档
+- 数据流描述
+
 ## 📁 默认输出结构（示例）
 ```sh
 project-docs/
@@ -397,6 +507,8 @@ project-docs/
 |_ 4、深入研究/         # 详细的技术主题实现文档
     |_ 主题1.md
     |_ 主题2.md
+|_ 5、边界接口          # API 端点、外部集成
+|_ 6、数据库概览        # 数据库架构、表关系（仅 SQL 项目）
 ```
 
 # 🤝 贡献

@@ -106,6 +106,8 @@ Whether you're a developer, architect, or technical lead, Litho eliminates the b
 - Customizable template system for documentation output
 
 ### Advanced Features
+- **External Knowledge Integration** - Mount external documentation (PDF, Markdown, SQL, etc.) as knowledge sources for enhanced analysis
+- **Database Documentation** - Auto-generate database schema documentation with ERD diagrams for SQL projects
 - Git history analysis for tracking architectural evolution
 - Cross-referencing between code elements and documentation
 - Interactive documentation with embedded diagrams and examples
@@ -483,6 +485,114 @@ deepwiki-rs -p ./src --disable-preset-tools --llm-api-base-url <your llm provide
 deepwiki-rs -p ./src --model-efficient GPT-5-mini --model-poweruful GPT-5-Pro --llm-api-base-url <your llm provider base-api> --llm_api_key <your api key> --model-efficient GPT-5-mini
 ```
 
+## 📚 External Knowledge Integration
+
+Litho supports mounting external documentation as knowledge sources to enhance generated documentation with business context and architectural decisions.
+
+### Supported Document Types
+- **PDF** - Architecture diagrams, design documents
+- **Markdown** - Technical documentation, ADRs
+- **SQL** - Database schema files
+- **YAML/JSON** - API specifications (OpenAPI), configurations
+- **Text** - Plain text documentation
+
+### Knowledge Categories
+Documents are organized into categories for targeted delivery to specific agents:
+- `architecture` - System architecture and C4 model docs
+- `database` - Schema, ERD, and data model documentation
+- `api` - API specifications and endpoint docs
+- `deployment` - Infrastructure and DevOps documentation
+- `adr` - Architecture Decision Records
+- `workflow` - Business processes and workflows
+- `general` - Uncategorized general documentation
+
+### Sync Knowledge Command
+```sh
+# Sync external knowledge sources (processes and caches local docs)
+deepwiki-rs sync-knowledge
+
+# Force sync even if cache is fresh
+deepwiki-rs sync-knowledge --force
+```
+
+### Configuration Example (litho.toml)
+```toml
+[knowledge.local_docs]
+enabled = true
+cache_dir = ".litho/cache/knowledge/local_docs"
+watch_for_changes = true
+
+# Default chunking for large documents
+[knowledge.local_docs.default_chunking]
+enabled = true
+max_chunk_size = 8000
+chunk_overlap = 200
+strategy = "semantic"  # Options: semantic, paragraph, fixed
+min_size_for_chunking = 10000
+
+# Architecture documentation category
+[[knowledge.local_docs.categories]]
+name = "architecture"
+description = "System architecture documentation"
+paths = [
+    "docs/architecture/**/*.md",
+    "docs/design/**/*.pdf"
+]
+target_agents = [
+    "SystemContextResearcher",
+    "ArchitectureResearcher",
+    "ArchitectureEditor"
+]
+
+# Database documentation category
+[[knowledge.local_docs.categories]]
+name = "database"
+description = "Database schema documentation"
+paths = [
+    "docs/database/**/*.md",
+    "docs/schema/**/*.sql"
+]
+target_agents = [
+    "ArchitectureResearcher",
+    "DomainModulesDetector",
+    "KeyModulesInsight"
+]
+```
+
+## 🗄️ Database Documentation
+
+Litho automatically analyzes SQL database projects (`.sqlproj`) and SQL files to generate comprehensive database documentation including:
+
+- **Database Projects** - SQL Server project structure
+- **Tables** - Schema, columns, data types, constraints, primary keys
+- **Views** - View definitions and referenced tables
+- **Stored Procedures** - Parameters, operations, accessed tables
+- **Functions** - Scalar and table-valued functions
+- **Relationships** - Foreign keys and implicit references (with ERD diagrams)
+- **Data Flows** - ETL operations and data movement patterns
+
+### Database Analysis Features
+```
+📊 Database code distribution: Projects(2) SQL Files(15) DAO(3)
+✅ Database overview analysis completed:
+   - Database projects: 2 items
+   - Tables: 12 items
+   - Views: 5 items
+   - Stored procedures: 8 items
+   - Functions: 3 items
+   - Table relationships: 6 items
+   - Data flows: 4 items
+   - Confidence: 8.5/10
+```
+
+### Generated Database Documentation
+The database documentation is automatically included in the output as `6.Database-Overview.md` with:
+- Summary statistics table
+- Detailed table schemas with column definitions
+- Mermaid ER diagrams showing relationships
+- Stored procedure documentation
+- Data flow descriptions
+
 ## 📁 Output Structure
 Litho generates a well-organized documentation structure:
 
@@ -494,7 +604,8 @@ project-docs/
 ├── 4. Deep Dive/            # Detailed technical topic implementation documentation
 │   ├── Topic1.md
 │   ├── Topic2.md
-
+├── 5. Boundary-Interfaces   # API endpoints, external integrations
+├── 6. Database-Overview     # Database schema, tables, relationships (SQL projects only)
 ```
 
 # 🤝 Contribute
