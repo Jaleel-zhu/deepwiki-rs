@@ -3,7 +3,6 @@
 use anyhow::Result;
 use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
-#[cfg(debug_assertions)]
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 

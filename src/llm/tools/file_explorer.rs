@@ -5,7 +5,6 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-#[cfg(debug_assertions)]
 use std::time::Duration;
 use walkdir::WalkDir;
 
