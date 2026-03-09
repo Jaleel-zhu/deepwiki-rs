@@ -4,72 +4,256 @@ use std::{
 };
 
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+fn json_value_to_string(value: serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::String(s) => s,
+        serde_json::Value::Bool(v) => v.to_string(),
+        serde_json::Value::Number(v) => v.to_string(),
+        serde_json::Value::Array(v) => serde_json::to_string(&v).unwrap_or_default(),
+        serde_json::Value::Object(v) => {
+            for key in [
+                "name",
+                "module",
+                "path",
+                "summary",
+                "description",
+                "title",
+                "value",
+                "text",
+                "id",
+            ] {
+                if let Some(inner) = v.get(key) {
+                    let text = json_value_to_string(inner.clone());
+                    if !text.is_empty() {
+                        return text;
+                    }
+                }
+            }
+            serde_json::to_string(&v).unwrap_or_default()
+        }
+    }
+}
+
+fn deserialize_string_lenient<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(json_value_to_string(value))
+}
+
+fn deserialize_option_string_lenient<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::Null => Ok(None),
+        other => Ok(Some(json_value_to_string(other))),
+    }
+}
+
+fn deserialize_vec_string_lenient<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let values = match value {
+        serde_json::Value::Null => Vec::new(),
+        serde_json::Value::Array(items) => items
+            .into_iter()
+            .map(json_value_to_string)
+            .filter(|v| !v.is_empty())
+            .collect(),
+        other => {
+            let one = json_value_to_string(other);
+            if one.is_empty() {
+                Vec::new()
+            } else {
+                vec![one]
+            }
+        }
+    };
+
+    Ok(values)
+}
+
+fn deserialize_interfaces_lenient<'de, D>(deserializer: D) -> Result<Vec<InterfaceInfo>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let mut interfaces = Vec::new();
+
+    let items = match value {
+        serde_json::Value::Null => Vec::new(),
+        serde_json::Value::Array(items) => items,
+        other => vec![other],
+    };
+
+    for item in items {
+        match item {
+            serde_json::Value::String(name) => interfaces.push(InterfaceInfo {
+                name,
+                ..Default::default()
+            }),
+            serde_json::Value::Object(_) => {
+                if let Ok(interface) = serde_json::from_value::<InterfaceInfo>(item.clone()) {
+                    interfaces.push(interface);
+                } else {
+                    interfaces.push(InterfaceInfo {
+                        name: json_value_to_string(item),
+                        ..Default::default()
+                    });
+                }
+            }
+            other => interfaces.push(InterfaceInfo {
+                name: json_value_to_string(other),
+                ..Default::default()
+            }),
+        }
+    }
+
+    Ok(interfaces)
+}
+
+fn deserialize_dependencies_lenient<'de, D>(deserializer: D) -> Result<Vec<Dependency>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let mut dependencies = Vec::new();
+
+    let items = match value {
+        serde_json::Value::Null => Vec::new(),
+        serde_json::Value::Array(items) => items,
+        other => vec![other],
+    };
+
+    for item in items {
+        match item {
+            serde_json::Value::String(name) => dependencies.push(Dependency {
+                name,
+                ..Default::default()
+            }),
+            serde_json::Value::Object(_) => {
+                if let Ok(dependency) = serde_json::from_value::<Dependency>(item.clone()) {
+                    dependencies.push(dependency);
+                } else {
+                    dependencies.push(Dependency {
+                        name: json_value_to_string(item),
+                        ..Default::default()
+                    });
+                }
+            }
+            other => dependencies.push(Dependency {
+                name: json_value_to_string(other),
+                ..Default::default()
+            }),
+        }
+    }
+
+    Ok(dependencies)
+}
+
+fn deserialize_code_purpose_lenient<'de, D>(deserializer: D) -> Result<CodePurpose, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let raw = json_value_to_string(value);
+    Ok(CodePurposeMapper::map_from_raw(&raw))
+}
 
 /// Code basic information
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[serde(default)]
 pub struct CodeDossier {
     /// Code file name
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub name: String,
     /// File path
     pub file_path: PathBuf,
     /// Source code summary
     #[schemars(skip)]
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub source_summary: String,
     /// Purpose type
+    #[serde(default, deserialize_with = "deserialize_code_purpose_lenient")]
     pub code_purpose: CodePurpose,
     /// Importance score
     pub importance_score: f64,
     pub description: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_vec_string_lenient")]
     pub functions: Vec<String>,
     /// Interfaces list
+    #[serde(default, deserialize_with = "deserialize_vec_string_lenient")]
     pub interfaces: Vec<String>,
 }
 
 /// Intelligent insight information of code file
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[serde(default)]
 pub struct CodeInsight {
     /// Code basic information
     pub code_dossier: CodeDossier,
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub detailed_description: String,
     /// Responsibilities
+    #[serde(default, deserialize_with = "deserialize_vec_string_lenient")]
     pub responsibilities: Vec<String>,
     /// Contained interfaces
+    #[serde(default, deserialize_with = "deserialize_interfaces_lenient")]
     pub interfaces: Vec<InterfaceInfo>,
     /// Dependency information
+    #[serde(default, deserialize_with = "deserialize_dependencies_lenient")]
     pub dependencies: Vec<Dependency>,
     pub complexity_metrics: CodeComplexity,
 }
 
 /// Interface information
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[serde(default)]
 pub struct InterfaceInfo {
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub interface_type: String, // "function", "method", "class", "trait", etc.
-    pub visibility: String,     // "public", "private", "protected"
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
+    pub visibility: String, // "public", "private", "protected"
     pub parameters: Vec<ParameterInfo>,
     pub return_type: Option<String>,
     pub description: Option<String>,
 }
 
 /// Parameter information
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[serde(default)]
 pub struct ParameterInfo {
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub param_type: String,
     pub is_optional: bool,
     pub description: Option<String>,
 }
 
 /// Dependency information
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[serde(default)]
 pub struct Dependency {
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub name: String,
+    #[serde(default, deserialize_with = "deserialize_option_string_lenient")]
     pub path: Option<String>,
     pub is_external: bool,
     pub line_number: Option<usize>,
+    #[serde(default, deserialize_with = "deserialize_string_lenient")]
     pub dependency_type: String, // "import", "use", "include", "require", etc.
+    #[serde(default, deserialize_with = "deserialize_option_string_lenient")]
     pub version: Option<String>,
 }
 
@@ -90,7 +274,8 @@ impl Display for Dependency {
 }
 
 /// Component complexity metrics
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[serde(default)]
 pub struct CodeComplexity {
     pub cyclomatic_complexity: f64,
     pub lines_of_code: usize,
@@ -115,7 +300,14 @@ pub enum CodePurpose {
     #[serde(alias = "Frontend UI component")]
     Widget,
     /// Code module for implementing specific logical functionality
-    #[serde(alias = "feature", alias = "specific_feature", alias = "specific-feature", alias = "Code module for implementing specific logical functionality")]
+    #[serde(
+        alias = "feature",
+        alias = "specific_feature",
+        alias = "specific-feature",
+        alias = "Specificfeature",
+        alias = "SpecificFeature",
+        alias = "Code module for implementing specific logical functionality"
+    )]
     SpecificFeature,
     /// Data type or model
     #[serde(alias = "Data type or model")]
@@ -127,7 +319,9 @@ pub enum CodePurpose {
     #[serde(alias = "Functional tool code for specific scenarios")]
     Tool,
     /// Common, basic utility functions and classes, providing low-level auxiliary functions unrelated to business logic
-    #[serde(alias = "Common, basic utility functions and classes, providing low-level auxiliary functions unrelated to business logic")]
+    #[serde(
+        alias = "Common, basic utility functions and classes, providing low-level auxiliary functions unrelated to business logic"
+    )]
     Util,
     /// Configuration
     #[serde(alias = "configuration", alias = "Configuration")]
@@ -145,16 +339,24 @@ pub enum CodePurpose {
     #[serde(alias = "Database component")]
     Database,
     /// Service API for external calls, providing calling capabilities based on HTTP, RPC, IPC and other protocols.
-    #[serde(alias = "Service API for external calls, providing calling capabilities based on HTTP, RPC, IPC and other protocols.")]
+    #[serde(
+        alias = "Service API for external calls, providing calling capabilities based on HTTP, RPC, IPC and other protocols."
+    )]
     Api,
     /// Controller component in MVC architecture, responsible for handling business logic
-    #[serde(alias = "Controller component in MVC architecture, responsible for handling business logic")]
+    #[serde(
+        alias = "Controller component in MVC architecture, responsible for handling business logic"
+    )]
     Controller,
     /// Service component in MVC architecture, responsible for handling business rules
-    #[serde(alias = "Service component in MVC architecture, responsible for handling business rules")]
+    #[serde(
+        alias = "Service component in MVC architecture, responsible for handling business rules"
+    )]
     Service,
     /// Collection of related code (functions, classes, resources) with clear boundaries and responsibilities
-    #[serde(alias = "Collection of related code (functions, classes, resources) with clear boundaries and responsibilities")]
+    #[serde(
+        alias = "Collection of related code (functions, classes, resources) with clear boundaries and responsibilities"
+    )]
     Module,
     /// Dependency library
     #[serde(alias = "library", alias = "package", alias = "Dependency library")]
@@ -163,7 +365,11 @@ pub enum CodePurpose {
     #[serde(alias = "testing", alias = "tests", alias = "Test component")]
     Test,
     /// Documentation component
-    #[serde(alias = "documentation", alias = "docs", alias = "Documentation component")]
+    #[serde(
+        alias = "documentation",
+        alias = "docs",
+        alias = "Documentation component"
+    )]
     Doc,
     /// Data Access Layer component
     #[serde(alias = "Data Access Layer component")]
@@ -172,10 +378,18 @@ pub enum CodePurpose {
     #[serde(alias = "Context component")]
     Context,
     /// command-line interface (CLI) commands or message/request handlers
-    #[serde(alias = "command-line interface (CLI) commands or message/request handlers", alias = "command-line interface (CLI) commands or message/request handlers")]
+    #[serde(
+        alias = "command-line interface (CLI) commands or message/request handlers",
+        alias = "command-line interface (CLI) commands or message/request handlers"
+    )]
     Command,
     /// Other uncategorized or unknown
-    #[serde(alias = "unknown", alias = "misc", alias = "miscellaneous", alias = "Other uncategorized or unknown")]
+    #[serde(
+        alias = "unknown",
+        alias = "misc",
+        alias = "miscellaneous",
+        alias = "Other uncategorized or unknown"
+    )]
     Other,
 }
 
@@ -228,6 +442,89 @@ impl Default for CodePurpose {
 pub struct CodePurposeMapper;
 
 impl CodePurposeMapper {
+    pub fn map_from_raw(raw: &str) -> CodePurpose {
+        let normalized = raw
+            .to_lowercase()
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect::<String>();
+
+        if normalized.is_empty() {
+            return CodePurpose::Other;
+        }
+        if normalized.contains("specificfeature") || normalized == "feature" {
+            return CodePurpose::SpecificFeature;
+        }
+        if normalized.contains("frontenduicomponent") || normalized == "widget" {
+            return CodePurpose::Widget;
+        }
+        if normalized.contains("frontenduipage") || normalized == "page" {
+            return CodePurpose::Page;
+        }
+        if normalized.contains("agent") {
+            return CodePurpose::Agent;
+        }
+        if normalized.contains("entry") {
+            return CodePurpose::Entry;
+        }
+        if normalized.contains("database") {
+            return CodePurpose::Database;
+        }
+        if normalized.contains("config") {
+            return CodePurpose::Config;
+        }
+        if normalized.contains("context") {
+            return CodePurpose::Context;
+        }
+        if normalized.contains("router") {
+            return CodePurpose::Router;
+        }
+        if normalized.contains("serviceapi") {
+            return CodePurpose::Api;
+        }
+        if normalized.contains("service") {
+            return CodePurpose::Service;
+        }
+        if normalized.contains("controller") {
+            return CodePurpose::Controller;
+        }
+        if normalized.contains("api") {
+            return CodePurpose::Api;
+        }
+        if normalized.contains("model") {
+            return CodePurpose::Model;
+        }
+        if normalized.contains("types") {
+            return CodePurpose::Types;
+        }
+        if normalized.contains("util") || normalized.contains("helper") {
+            return CodePurpose::Util;
+        }
+        if normalized.contains("tool") {
+            return CodePurpose::Tool;
+        }
+        if normalized.contains("module") {
+            return CodePurpose::Module;
+        }
+        if normalized.contains("dao") || normalized.contains("repository") {
+            return CodePurpose::Dao;
+        }
+        if normalized.contains("test") {
+            return CodePurpose::Test;
+        }
+        if normalized.contains("doc") {
+            return CodePurpose::Doc;
+        }
+        if normalized.contains("command") || normalized.contains("cli") {
+            return CodePurpose::Command;
+        }
+        if normalized.contains("library") || normalized.contains("package") || normalized == "lib" {
+            return CodePurpose::Lib;
+        }
+
+        CodePurpose::Other
+    }
+
     /// Intelligent mapping based on file path and name
     pub fn map_by_path_and_name(file_path: &str, file_name: &str) -> CodePurpose {
         let path_lower = file_path.to_lowercase();
@@ -383,28 +680,19 @@ mod tests {
     fn test_sql_file_classification() {
         // .sqlproj files should always be classified as Database
         assert_eq!(
-            CodePurposeMapper::map_by_path_and_name(
-                "/src/MyProject.sqlproj",
-                "MyProject.sqlproj"
-            ),
+            CodePurposeMapper::map_by_path_and_name("/src/MyProject.sqlproj", "MyProject.sqlproj"),
             CodePurpose::Database
         );
 
         // .sql files should always be classified as Database
         assert_eq!(
-            CodePurposeMapper::map_by_path_and_name(
-                "/src/CreateTable.sql",
-                "CreateTable.sql"
-            ),
+            CodePurposeMapper::map_by_path_and_name("/src/CreateTable.sql", "CreateTable.sql"),
             CodePurpose::Database
         );
 
         // Even in root directory
         assert_eq!(
-            CodePurposeMapper::map_by_path_and_name(
-                "/Schema.sql",
-                "Schema.sql"
-            ),
+            CodePurposeMapper::map_by_path_and_name("/Schema.sql", "Schema.sql"),
             CodePurpose::Database
         );
 
@@ -422,10 +710,7 @@ mod tests {
     fn test_sql_file_in_database_folder() {
         // SQL files in /database/ folder should still be Database
         assert_eq!(
-            CodePurposeMapper::map_by_path_and_name(
-                "/src/database/schema.sql",
-                "schema.sql"
-            ),
+            CodePurposeMapper::map_by_path_and_name("/src/database/schema.sql", "schema.sql"),
             CodePurpose::Database
         );
     }
@@ -434,10 +719,7 @@ mod tests {
     fn test_path_based_classification() {
         // Files in /database/ folder
         assert_eq!(
-            CodePurposeMapper::map_by_path_and_name(
-                "/src/database/connection.cs",
-                "connection.cs"
-            ),
+            CodePurposeMapper::map_by_path_and_name("/src/database/connection.cs", "connection.cs"),
             CodePurpose::Database
         );
 
@@ -449,5 +731,93 @@ mod tests {
             ),
             CodePurpose::Dao
         );
+    }
+
+    #[test]
+    fn test_code_insight_deserialize_with_missing_fields() {
+        let payload = serde_json::json!({
+            "code_dossier": {
+                "name": "chat-window.tsx",
+                "file_path": "src/chat-window.tsx"
+            },
+            "interfaces": [
+                {
+                    "interface_type": "function"
+                }
+            ],
+            "dependencies": [
+                {
+                    "path": "react",
+                    "is_external": true
+                }
+            ]
+        });
+
+        let insight: CodeInsight = serde_json::from_value(payload).expect(
+            "CodeInsight should support partial model outputs and fill defaults for missing fields",
+        );
+
+        assert_eq!(insight.code_dossier.name, "chat-window.tsx");
+        assert_eq!(
+            insight.code_dossier.file_path,
+            PathBuf::from("src/chat-window.tsx")
+        );
+        assert_eq!(insight.code_dossier.code_purpose, CodePurpose::Other);
+        assert!(insight.responsibilities.is_empty());
+        assert_eq!(insight.interfaces[0].name, "");
+        assert_eq!(insight.dependencies[0].name, "");
+    }
+
+    #[test]
+    fn test_code_insight_deserialize_with_specificfeature_variant() {
+        let payload = serde_json::json!({
+            "code_dossier": {
+                "name": "connect-button.tsx",
+                "file_path": "src/connect-button.tsx",
+                "code_purpose": "Specificfeature"
+            }
+        });
+
+        let insight: CodeInsight = serde_json::from_value(payload).expect(
+            "CodeInsight should accept common model variant typo `Specificfeature` for code_purpose",
+        );
+
+        assert_eq!(
+            insight.code_dossier.code_purpose,
+            CodePurpose::SpecificFeature
+        );
+    }
+
+    #[test]
+    fn test_code_insight_deserialize_with_loose_schema_values() {
+        let payload = serde_json::json!({
+            "code_dossier": {
+                "name": "use-toast.ts",
+                "file_path": "src/use-toast.ts",
+                "code_purpose": "widget"
+            },
+            "detailed_description": {
+                "summary": "hook for toast state"
+            },
+            "interfaces": [
+                "State interface"
+            ],
+            "dependencies": [
+                {
+                    "name": {"module": "react"},
+                    "is_external": true
+                }
+            ]
+        });
+
+        let insight: CodeInsight = serde_json::from_value(payload)
+            .expect("CodeInsight should tolerate loose schema values from LLM output");
+
+        assert_eq!(insight.code_dossier.name, "use-toast.ts");
+        assert_eq!(insight.detailed_description, "hook for toast state");
+        assert_eq!(insight.interfaces.len(), 1);
+        assert_eq!(insight.interfaces[0].name, "State interface");
+        assert_eq!(insight.dependencies.len(), 1);
+        assert_eq!(insight.dependencies[0].name, "react");
     }
 }

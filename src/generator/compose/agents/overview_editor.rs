@@ -43,6 +43,15 @@ impl StepForwardAgent for OverviewEditor {
 
 Your task is to write a complete, in-depth, detailed, and easy-to-read C4 SystemContext document titled `Project Overview` based on the provided system context research report and domain module analysis results.
 
+## Mermaid Diagram Safety Rules (MUST follow):
+- Always generate Mermaid that is syntactically valid in strict parsers.
+- Use ASCII-only node IDs: `[A-Za-z0-9_]` (e.g. `ClientApp`, `BackendAPI`).
+- Put localized/human-readable text only inside node labels, e.g. `ClientApp["Ứng dụng khách hàng"]`.
+- Define every node ID before using it in edges.
+- Use only standard diagram headers like `graph TD`, `graph LR`, `flowchart TD`, `sequenceDiagram`, `erDiagram`.
+- Do not use hidden/zero-width characters, smart quotes, or unusual Unicode symbols in Mermaid code.
+- Keep edge labels simple plain text without markdown formatting.
+
 ## External Knowledge Integration:
 You may have access to existing product description, requirements and architecture documentation from external sources.
 If available:

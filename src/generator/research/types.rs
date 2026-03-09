@@ -182,7 +182,8 @@ pub struct BusinessFlow {
 }
 
 /// Core component analysis result
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[serde(default)]
 pub struct KeyModuleReport {
     /// Domain name
     pub domain_name: String,
@@ -498,3 +499,22 @@ impl Default for DatabaseOverviewReport {
 
 // https://c4model.com/abstractions/software-system
 // System name, project's role and value, system type, who is using it, how to use, which external systems it interacts with, diagram
+
+#[cfg(test)]
+mod tests {
+    use super::KeyModuleReport;
+
+    #[test]
+    fn test_key_module_report_deserialize_with_missing_module_name() {
+        let payload = serde_json::json!({
+            "domain_name": "Tài liệu & IaC",
+            "module_description": "Infrastructure and documentation module"
+        });
+
+        let report: KeyModuleReport = serde_json::from_value(payload)
+            .expect("KeyModuleReport should deserialize when module_name is missing");
+
+        assert_eq!(report.module_name, "");
+        assert_eq!(report.domain_name, "Tài liệu & IaC");
+    }
+}

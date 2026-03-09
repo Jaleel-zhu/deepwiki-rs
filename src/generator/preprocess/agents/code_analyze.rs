@@ -42,15 +42,24 @@ impl CodeAnalyze {
 
                 Box::pin(async move {
                     let code_analyze = CodeAnalyze { language_processor };
-                    let agent_params = code_analyze
+                    let (agent_params, mut static_insight) = code_analyze
                         .prepare_single_code_agent_params(&project_structure_clone, &code_clone)
                         .await?;
-                    let mut code_insight =
-                        extract::<CodeInsight>(&context_clone, agent_params).await?;
+                    static_insight.code_dossier.source_summary = code_clone.source_summary.to_owned();
 
-                    // LLM will rewrite source_summary, so exclude it and override here
+                    let mut code_insight = match extract::<CodeInsight>(&context_clone, agent_params).await {
+                        Ok(insight) => insight,
+                        Err(e) => {
+                            eprintln!(
+                                "⚠️ AI code insight failed for {}: {}. Falling back to static analysis.",
+                                code_clone.name, e
+                            );
+                            return Result::<CodeInsight>::Ok(static_insight);
+                        }
+                    };
+
+                    // LLM may rewrite source_summary, so exclude it and override here
                     code_insight.code_dossier.source_summary = code_clone.source_summary.to_owned();
-
                     Result::<CodeInsight>::Ok(code_insight)
                 })
             })
@@ -73,7 +82,10 @@ impl CodeAnalyze {
             }
         }
 
-        println!("✓ Concurrent code analysis completed, successfully analyzed {} files", code_insights.len());
+        println!(
+            "✓ Concurrent code analysis completed, successfully analyzed {} files",
+            code_insights.len()
+        );
         Ok(code_insights)
     }
 }
@@ -83,7 +95,7 @@ impl CodeAnalyze {
         &self,
         project_structure: &ProjectStructure,
         codes: &CodeDossier,
-    ) -> Result<AgentExecuteParams> {
+    ) -> Result<(AgentExecuteParams, CodeInsight)> {
         // First perform static analysis
         let code_analyse = self.analyze_code_by_rules(codes, project_structure).await?;
 
@@ -91,12 +103,15 @@ impl CodeAnalyze {
         let prompt_user = self.build_code_analysis_prompt(project_structure, &code_analyse);
         let prompt_sys = include_str!("prompts/code_analyze_sys.tpl").to_string();
 
-        Ok(AgentExecuteParams {
-            prompt_sys,
-            prompt_user,
-            cache_scope: "ai_code_insight".to_string(),
-            log_tag: codes.name.to_string(),
-        })
+        Ok((
+            AgentExecuteParams {
+                prompt_sys,
+                prompt_user,
+                cache_scope: "ai_code_insight".to_string(),
+                log_tag: codes.name.to_string(),
+            },
+            code_analyse,
+        ))
     }
 }
 

@@ -32,13 +32,27 @@ impl StepForwardAgent for ArchitectureEditor {
                 DataSource::ResearchResult(ResearchAgentType::WorkflowResearcher.to_string()),
             ],
             // Use architecture, deployment, database and ADR docs
-            optional_sources: vec![DataSource::knowledge_categories(vec!["architecture", "deployment", "database", "adr"])],
+            optional_sources: vec![DataSource::knowledge_categories(vec![
+                "architecture",
+                "deployment",
+                "database",
+                "adr",
+            ])],
         }
     }
 
     fn prompt_template(&self) -> PromptTemplate {
         PromptTemplate {
             system_prompt: r#"You are a professional software architecture documentation expert, focused on generating complete, in-depth, and detailed C4 architecture model documentation. Your task is to write an architecture documentation titled `Architecture Overview` based on the provided research reports.
+
+## Mermaid Diagram Safety Rules (MUST follow):
+- Always output Mermaid that compiles in strict Mermaid parsers.
+- Use ASCII-only node IDs: `[A-Za-z0-9_]` (example: `WebDemo`, `InferenceService`, `FabricAPI`).
+- Keep business/localized text in labels only, e.g. `WebDemo["Web Demo hội thoại"]`.
+- Define all nodes first, then declare edges between existing IDs.
+- Use only supported headers (`graph TD`, `graph LR`, `flowchart TD`, `sequenceDiagram`, `erDiagram`).
+- Do not include hidden characters, smart quotes, or non-standard symbols in Mermaid source.
+- Keep edge labels short plain text; avoid markdown and overly complex punctuation.
 
 ## Your Professional Capabilities:
 1. **Architecture Analysis Capability**: Deep understanding of system architecture patterns, design principles, and technology selection

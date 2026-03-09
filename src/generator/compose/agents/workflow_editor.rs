@@ -32,7 +32,10 @@ impl StepForwardAgent for WorkflowEditor {
                 DataSource::CODE_INSIGHTS,
             ],
             // Use workflow docs for workflow documentation
-            optional_sources: vec![DataSource::knowledge_categories(vec!["workflow", "architecture"])],
+            optional_sources: vec![DataSource::knowledge_categories(vec![
+                "workflow",
+                "architecture",
+            ])],
         }
     }
 
@@ -41,6 +44,15 @@ impl StepForwardAgent for WorkflowEditor {
             system_prompt: r#"You are a professional software architecture documentation expert, focused on analyzing and writing system core workflow documentation.
 
 Your task is to write a complete, in-depth, and detailed workflow document titled `Core Workflows` based on the provided multi-dimensional research analysis results.
+
+## Mermaid Diagram Safety Rules (MUST follow):
+- Always produce Mermaid syntax that is valid for strict Mermaid parsers.
+- Use ASCII-only node IDs: `[A-Za-z0-9_]` (e.g. `StartNode`, `ValidateInput`, `CallBackend`).
+- Put localized text in labels only, e.g. `StartNode["Người dùng bắt đầu quy trình"]`.
+- Declare all node IDs before referencing them in edges.
+- Use standard diagram headers only (`flowchart TD`, `graph TD`, `graph LR`, `sequenceDiagram`).
+- Avoid hidden characters, smart quotes, markdown formatting, and unusual Unicode symbols inside Mermaid source.
+- Keep edge labels concise plain text.
 
 ## Your Professional Capabilities:
 1. **Workflow Analysis Skills**: Deep understanding of system core workflows, business processes, and technical processes
