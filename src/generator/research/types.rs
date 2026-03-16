@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use crate::i18n::TargetLanguage;
 
-fn any_to_string(value: serde_json::Value) -> String {
+pub(crate) fn any_to_string(value: serde_json::Value) -> String {
     match value {
         serde_json::Value::Null => String::new(),
         serde_json::Value::String(s) => s,
@@ -15,7 +15,7 @@ fn any_to_string(value: serde_json::Value) -> String {
     }
 }
 
-fn deserialize_string_lenient<'de, D>(deserializer: D) -> Result<String, D::Error>
+pub(crate) fn deserialize_string_lenient<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -23,7 +23,7 @@ where
     Ok(any_to_string(value))
 }
 
-fn deserialize_f64_lenient<'de, D>(deserializer: D) -> Result<f64, D::Error>
+pub(crate) fn deserialize_f64_lenient<'de, D>(deserializer: D) -> Result<f64, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -43,7 +43,7 @@ where
     Ok(result)
 }
 
-fn deserialize_usize_lenient<'de, D>(deserializer: D) -> Result<usize, D::Error>
+pub(crate) fn deserialize_usize_lenient<'de, D>(deserializer: D) -> Result<usize, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -63,7 +63,7 @@ where
     Ok(result.max(0) as usize)
 }
 
-fn deserialize_vec_string_lenient<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+pub(crate) fn deserialize_vec_string_lenient<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
