@@ -53,7 +53,66 @@ If available:
 - Align module identification with documented domain boundaries
 - Reference domain-driven design (DDD) concepts from the documentation
 - Validate code organization against documented bounded contexts
-- Ensure consistency between business language and code structure"#
+- Ensure consistency between business language and code structure
+
+You MUST output strict JSON only (no markdown, no code fences, no prose outside JSON).
+Return all required fields exactly with this structure:
+{
+  "domain_modules": [
+    {
+      "name": "string",
+      "description": "string",
+      "domain_type": "string",
+      "sub_modules": [
+        {
+          "name": "string",
+          "description": "string",
+          "code_paths": ["string"],
+          "key_functions": ["string"],
+          "importance": 1.0
+        }
+      ],
+      "code_paths": ["string"],
+      "importance": 1.0,
+      "complexity": 1.0
+    }
+  ],
+  "domain_relations": [
+    {
+      "from_domain": "string",
+      "to_domain": "string",
+      "relation_type": "string",
+      "strength": 1.0,
+      "description": "string"
+    }
+  ],
+  "business_flows": [
+    {
+      "name": "string",
+      "description": "string",
+      "steps": [
+        {
+          "step": 1,
+          "domain_module": "string",
+          "sub_module": "string or null",
+          "operation": "string",
+          "code_entry_point": "string or null"
+        }
+      ],
+      "entry_point": "string",
+      "importance": 1.0,
+      "involved_domains_count": 1
+    }
+  ],
+  "architecture_summary": "string",
+  "confidence_score": 0.0
+}
+
+Rules:
+- Always include all top-level keys.
+- Every element in business_flows.steps must be an object, never a plain string.
+- Fill unknown values with empty string, empty arrays, or null as appropriate.
+- confidence_score must be numeric (0.0-10.0)."#
                 .to_string(),
 
             opening_instruction: "Based on the following research materials, conduct a high-level architecture analysis:".to_string(),
@@ -84,7 +143,10 @@ If available:
     ) -> Result<()> {
         // Simplified storage logic
         println!("✅ Domain architecture analysis completed:");
-        println!("   - Identified domain modules: {}", result.domain_modules.len());
+        println!(
+            "   - Identified domain modules: {}",
+            result.domain_modules.len()
+        );
 
         let total_sub_modules: usize = result
             .domain_modules

@@ -1,17 +1,15 @@
-use crate::generator::{
-    {
-        step_forward_agent::{StepForwardAgent, AgentDataConfig, DataSource, PromptTemplate, LLMCallMode, FormatterConfig},
-    },
-};
 use crate::generator::research::memory::MemoryScope;
 use crate::generator::research::types::{AgentType, WorkflowReport};
+use crate::generator::step_forward_agent::{
+    AgentDataConfig, DataSource, FormatterConfig, LLMCallMode, PromptTemplate, StepForwardAgent,
+};
 
 #[derive(Default)]
 pub struct WorkflowResearcher;
 
 impl StepForwardAgent for WorkflowResearcher {
     type Output = WorkflowReport;
-    
+
     fn agent_type(&self) -> String {
         AgentType::WorkflowResearcher.to_string()
     }
@@ -29,13 +27,16 @@ impl StepForwardAgent for WorkflowResearcher {
             required_sources: vec![
                 DataSource::ResearchResult(AgentType::SystemContextResearcher.to_string()),
                 DataSource::ResearchResult(AgentType::DomainModulesDetector.to_string()),
-                DataSource::CODE_INSIGHTS
+                DataSource::CODE_INSIGHTS,
             ],
             // Use workflow docs for business process analysis
-            optional_sources: vec![DataSource::knowledge_categories(vec!["workflow", "architecture"])],
+            optional_sources: vec![DataSource::knowledge_categories(vec![
+                "workflow",
+                "architecture",
+            ])],
         }
     }
-    
+
     fn prompt_template(&self) -> PromptTemplate {
         PromptTemplate {
             system_prompt: r#"Analyze the project's core functional workflows, focusing from a functional perspective without being limited to excessive technical details.
@@ -46,7 +47,31 @@ If available:
 - Use established process terminology and flow descriptions
 - Validate implementation against documented process requirements
 - Identify any gaps between documented workflows and actual implementation
-- Incorporate business context and rationale from the documentation"#.to_string(),
+- Incorporate business context and rationale from the documentation
+
+You MUST output strict JSON only (no markdown, no code fences, no prose outside JSON).
+Return exactly this shape:
+{
+  "main_workflow": {
+    "name": "string",
+    "description": "string",
+    "flowchart_mermaid": "string"
+  },
+  "other_important_workflows": [
+    {
+      "name": "string",
+      "description": "string",
+      "flowchart_mermaid": "string"
+    }
+  ]
+}
+
+Rules:
+- Always include both top-level fields.
+- main_workflow must be an object, never a plain string.
+- Every item in other_important_workflows must be an object with all 3 fields.
+- Use empty strings when unknown.
+- flowchart_mermaid should be valid Mermaid flowchart text (or empty string if unavailable)."#.to_string(),
             opening_instruction: "The following research reports are provided for analyzing the system's main workflows".to_string(),
             closing_instruction: r#"Please analyze the system's core workflows based on the research materials.
 

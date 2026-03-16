@@ -267,7 +267,28 @@ impl KeyModulesInsight {
         insights: &[CodeInsight],
     ) -> (String, String) {
         let system_prompt =
-            "Based on the information provided by the user, conduct in-depth and rigorous analysis and provide results in the specified format".to_string();
+            "Based on the provided domain and code insights, conduct in-depth analysis and return strict JSON only.
+
+Output requirements (no markdown, no code fences, no prose outside JSON):
+{
+  \"domain_name\": \"string\",
+  \"module_name\": \"string\",
+  \"module_description\": \"string\",
+  \"interaction\": \"string\",
+  \"implementation\": \"string\",
+  \"associated_files\": [\"string\"],
+  \"flowchart_mermaid\": \"string\",
+  \"sequence_diagram_mermaid\": \"string\"
+}
+
+Rules:
+- Include all fields every time.
+- Use plain strings for all textual fields.
+- associated_files must be an array of strings.
+- If uncertain, use empty strings/empty array.
+- Mermaid fields must be valid mermaid text or empty string.
+"
+            .to_string();
 
         let user_prompt = format!(
             "## Domain Analysis Task\nAnalyze the core module technical details of the '{}' domain\n\n### Domain Information\n- Domain Name: {}\n- Domain Type: {}\n- Importance: {:.1}/10\n- Complexity: {:.1}/10\n- Description: {}\n\n### Submodule Overview\n{}\n\n### Related Code Insights\n{}\n",
