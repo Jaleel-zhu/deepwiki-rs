@@ -70,7 +70,111 @@ Focus on:
 - Understand the purpose of stored procedures and functions
 - Map data flow patterns through the database
 
-Please return the analysis results in structured JSON format."#
+You MUST output strict JSON only (no markdown, no code fences, no prose outside JSON).
+Return exactly this shape with all keys present:
+{
+  "database_projects": [
+    {
+      "name": "string",
+      "project_path": "string",
+      "target_platform": "string or null",
+      "table_count": 0,
+      "view_count": 0,
+      "procedure_count": 0,
+      "function_count": 0,
+      "references": ["string"]
+    }
+  ],
+  "tables": [
+    {
+      "schema": "string",
+      "name": "string",
+      "columns": [
+        {
+          "name": "string",
+          "data_type": "string",
+          "nullable": false,
+          "is_identity": false,
+          "default_value": "string or null"
+        }
+      ],
+      "primary_key": ["string"],
+      "description": "string",
+      "source_path": "string"
+    }
+  ],
+  "views": [
+    {
+      "schema": "string",
+      "name": "string",
+      "description": "string",
+      "referenced_tables": ["string"],
+      "source_path": "string"
+    }
+  ],
+  "stored_procedures": [
+    {
+      "schema": "string",
+      "name": "string",
+      "parameters": [
+        {
+          "name": "string",
+          "data_type": "string",
+          "is_optional": false,
+          "direction": "string"
+        }
+      ],
+      "description": "string",
+      "referenced_tables": ["string"],
+      "source_path": "string"
+    }
+  ],
+  "database_functions": [
+    {
+      "schema": "string",
+      "name": "string",
+      "function_type": "string",
+      "parameters": [
+        {
+          "name": "string",
+          "data_type": "string",
+          "is_optional": false,
+          "direction": "string"
+        }
+      ],
+      "return_type": "string",
+      "description": "string",
+      "source_path": "string"
+    }
+  ],
+  "table_relationships": [
+    {
+      "from_table": "string",
+      "from_columns": ["string"],
+      "to_table": "string",
+      "to_columns": ["string"],
+      "relationship_type": "string",
+      "constraint_name": "string or null"
+    }
+  ],
+  "data_flows": [
+    {
+      "name": "string",
+      "source": "string",
+      "destination": "string",
+      "operations": ["string"],
+      "procedures_involved": ["string"]
+    }
+  ],
+  "confidence_score": 0.0
+}
+
+Rules:
+- Always include all top-level keys.
+- Items in arrays must be objects, never plain strings.
+- Use empty arrays if no database objects exist.
+- Use empty strings or null for unknown fields.
+- confidence_score must be numeric (0.0-10.0)."#
                     .to_string(),
 
             opening_instruction: "Analyze the database structure based on the following SQL code insights and project information:".to_string(),

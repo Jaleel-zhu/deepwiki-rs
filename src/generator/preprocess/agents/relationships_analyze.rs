@@ -37,7 +37,37 @@ impl RelationshipsAnalyze {
         context: &GeneratorContext,
         code_insights: &[CodeInsight],
     ) -> Result<AgentExecuteParams> {
-        let prompt_sys = "You are a professional software architecture analyst specializing in analyzing project-level code dependency relationship graphs. Based on the provided code insights and dependencies, generate an overall architectural relationship analysis for the project.".to_string();
+        let prompt_sys = "You are a professional software architecture analyst.
+
+You MUST return valid JSON only (no markdown, no code fences, no prose before/after JSON).
+The JSON MUST match this exact schema and field names:
+{
+  \"core_dependencies\": [
+    {
+      \"from\": \"string\",
+      \"to\": \"string\",
+      \"dependency_type\": \"Import|FunctionCall|Inheritance|Composition|DataFlow|Module\",
+      \"importance\": 1,
+      \"description\": \"string (optional)\"
+    }
+  ],
+  \"architecture_layers\": [
+    {
+      \"name\": \"string\",
+      \"components\": [\"string\"],
+      \"level\": 1
+    }
+  ],
+  \"key_insights\": [\"string\"]
+}
+
+Constraints:
+- Never omit top-level keys. Always include all three arrays.
+- Use plain strings for textual fields; never objects/arrays for those fields.
+- Use integer values for \"importance\" and \"level\".
+- Keep values concise and architecture-focused.
+"
+        .to_string();
 
         // Sort by importance and intelligently select
         let mut sorted_insights: Vec<_> = code_insights.iter().collect();
@@ -65,7 +95,14 @@ impl RelationshipsAnalyze {
         let compressed_insights = compression_result.compressed_content;
 
         let prompt_user = format!(
-            "Please analyze the overall architectural relationship graph of the project based on the following code insights and dependencies:
+            "Analyze the overall architectural relationship graph of this project based on the code insights below.
+
+Output requirements (strict):
+- Return JSON only.
+- Do not use markdown code blocks.
+- Do not include explanations outside JSON.
+- Use exactly the allowed enum labels: Import, FunctionCall, Inheritance, Composition, DataFlow, Module.
+- If uncertain, use Module as dependency_type.
 
 ## Core Code Insights
 {}

@@ -67,7 +67,78 @@ Focus on:
 - Identify mechanisms and methods for external systems to call this system
 - Provide practical integration guidance and security recommendations
 
-Please return the analysis results in structured JSON format."#
+You MUST output strict JSON only (no markdown, no code fences, no prose outside JSON).
+Return exactly this shape:
+{
+  "cli_boundaries": [
+    {
+      "command": "string",
+      "description": "string",
+      "arguments": [
+        {
+          "name": "string",
+          "description": "string",
+          "required": false,
+          "default_value": "string or null",
+          "value_type": "string"
+        }
+      ],
+      "options": [
+        {
+          "name": "string",
+          "short_name": "string or null",
+          "description": "string",
+          "required": false,
+          "default_value": "string or null",
+          "value_type": "string"
+        }
+      ],
+      "examples": ["string"],
+      "source_location": "string"
+    }
+  ],
+  "api_boundaries": [
+    {
+      "endpoint": "string",
+      "method": "string",
+      "description": "string",
+      "request_format": "string or null",
+      "response_format": "string or null",
+      "authentication": "string or null",
+      "source_location": "string"
+    }
+  ],
+  "router_boundaries": [
+    {
+      "path": "string",
+      "description": "string",
+      "source_location": "string",
+      "params": [
+        {
+          "key": "string",
+          "value_type": "string",
+          "description": "string"
+        }
+      ]
+    }
+  ],
+  "integration_suggestions": [
+    {
+      "integration_type": "string",
+      "description": "string",
+      "example_code": "string",
+      "best_practices": ["string"]
+    }
+  ],
+  "confidence_score": 0.0
+}
+
+Rules:
+- Always include all top-level keys.
+- Items in boundary arrays must be objects, never plain strings.
+- Use empty arrays when no boundaries are found.
+- Use empty strings or null for unknown values.
+- confidence_score must be a number from 0.0 to 10.0."#
                     .to_string(),
 
             opening_instruction: "Analyze the system's boundary interfaces based on the following boundary-related code and project information:".to_string(),

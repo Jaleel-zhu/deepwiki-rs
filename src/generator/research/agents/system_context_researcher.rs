@@ -1,10 +1,8 @@
-use crate::generator::{
-    step_forward_agent::{
-        AgentDataConfig, DataSource, FormatterConfig, LLMCallMode, PromptTemplate, StepForwardAgent,
-    }
-};
 use crate::generator::research::memory::MemoryScope;
 use crate::generator::research::types::{AgentType, SystemContextReport};
+use crate::generator::step_forward_agent::{
+    AgentDataConfig, DataSource, FormatterConfig, LLMCallMode, PromptTemplate, StepForwardAgent,
+};
 
 /// Project Objective Researcher - Responsible for analyzing the project's core objectives, functional value, and system boundaries
 #[derive(Default)]
@@ -58,6 +56,41 @@ Rrequired output style (extremely important):
 - No repetition - state each point once
 - Concrete specifics over vague generalities
 - If uncertain, say so briefly rather than padding
+
+You MUST output strict JSON only (no markdown, no code fences, no prose outside JSON).
+The output must include ALL fields exactly as follows:
+{
+  "project_name": "string",
+  "project_description": "string",
+  "project_type": "FrontendApp|BackendService|FullStackApp|ComponentLibrary|Framework|CLITool|MobileApp|DesktopApp|Other",
+  "business_value": "string",
+  "target_users": [
+    {
+      "name": "string",
+      "description": "string",
+      "needs": ["string"]
+    }
+  ],
+  "external_systems": [
+    {
+      "name": "string",
+      "description": "string",
+      "interaction_type": "string"
+    }
+  ],
+  "system_boundary": {
+    "scope": "string",
+    "included_components": ["string"],
+    "excluded_components": ["string"]
+  },
+  "confidence_score": 0.0
+}
+
+Rules:
+- Always include all fields, even if empty.
+- Use empty string/empty arrays when unknown.
+- Never put plain strings where an object is required.
+- confidence_score must be a number from 0.0 to 10.0.
 
 Generate Output as JSON per existing schema."#
                 .to_string(),
