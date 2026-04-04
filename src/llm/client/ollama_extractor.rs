@@ -17,7 +17,7 @@ static JSON_CODE_BLOCK_REGEX: LazyLock<Regex> =
 
 /// Ollama structured output extractor
 pub struct OllamaExtractorWrapper<T> {
-    agent: Agent<rig::providers::ollama::CompletionModel<reqwest::Client>>,
+    agent: Agent<rig::providers::ollama::CompletionModel>,
     max_retries: u32,
     _phantom: std::marker::PhantomData<T>,
 }
@@ -27,7 +27,7 @@ where
     T: JsonSchema + Serialize + for<'de> Deserialize<'de>,
 {
     /// Create a new Ollama extractor
-    pub fn new(agent: Agent<rig::providers::ollama::CompletionModel<reqwest::Client>>, max_retries: u32) -> Self {
+    pub fn new(agent: Agent<rig::providers::ollama::CompletionModel>, max_retries: u32) -> Self {
         Self {
             agent,
             max_retries,

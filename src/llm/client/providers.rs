@@ -4,7 +4,7 @@ use anyhow::Result;
 use rig::{
     agent::Agent,
     client::CompletionClient,
-    completion::{Prompt, PromptError},
+    completion::Prompt,
     extractor::Extractor,
     providers::gemini::completion::gemini_api_types::{AdditionalParameters, GenerationConfig},
 };
@@ -21,7 +21,7 @@ use super::ollama_extractor::OllamaExtractorWrapper;
 /// Unified Provider client enum
 #[derive(Clone)]
 pub enum ProviderClient {
-    OpenAI(rig::providers::openai::Client),
+    OpenAI(rig::providers::openai::CompletionsClient),
     Moonshot(rig::providers::moonshot::Client),
     DeepSeek(rig::providers::deepseek::Client),
     Mistral(rig::providers::mistral::Client),
@@ -36,45 +36,53 @@ impl ProviderClient {
     pub fn new(config: &LLMConfig) -> Result<Self> {
         match config.provider {
             LLMProvider::OpenAI => {
-                let client = rig::providers::openai::Client::builder(&config.api_key)
-                    .base_url(&config.api_base_url)
-                    .build();
+                let client = if config.api_base_url != "https://api.openai.com/v1" {
+                    rig::providers::openai::Client::builder()
+                        .api_key(&config.api_key)
+                        .base_url(&config.api_base_url)
+                        .build()?
+                        .completions_api()
+                } else {
+                    rig::providers::openai::Client::new(&config.api_key)?
+                        .completions_api()
+                };
                 Ok(ProviderClient::OpenAI(client))
             }
             LLMProvider::Moonshot => {
-                let client = rig::providers::moonshot::Client::builder(&config.api_key)
+                let client = rig::providers::moonshot::Client::builder()
+                    .api_key(&config.api_key)
                     .base_url(&config.api_base_url)
-                    .build();
+                    .build()?;
                 Ok(ProviderClient::Moonshot(client))
             }
             LLMProvider::DeepSeek => {
-                let client = rig::providers::deepseek::Client::builder(&config.api_key)
+                let client = rig::providers::deepseek::Client::builder()
+                    .api_key(&config.api_key)
                     .base_url(&config.api_base_url)
-                    .build();
+                    .build()?;
                 Ok(ProviderClient::DeepSeek(client))
             }
             LLMProvider::Mistral => {
-                let client = rig::providers::mistral::Client::builder(&config.api_key).build();
+                let client = rig::providers::mistral::Client::new(&config.api_key)?;
                 Ok(ProviderClient::Mistral(client))
             }
             LLMProvider::OpenRouter => {
-                // reference： https://docs.rig.rs/docs/integrations/model_providers/anthropic#basic-usage
-                let client = rig::providers::openrouter::Client::builder(&config.api_key).build();
+                let client = rig::providers::openrouter::Client::new(&config.api_key)?;
                 Ok(ProviderClient::OpenRouter(client))
             }
             LLMProvider::Anthropic => {
-                let client =
-                    rig::providers::anthropic::ClientBuilder::new(&config.api_key).build()?;
+                let client = rig::providers::anthropic::Client::new(&config.api_key)?;
                 Ok(ProviderClient::Anthropic(client))
             }
             LLMProvider::Gemini => {
-                let client = rig::providers::gemini::Client::builder(&config.api_key).build()?;
+                let client = rig::providers::gemini::Client::new(&config.api_key)?;
                 Ok(ProviderClient::Gemini(client))
             }
             LLMProvider::Ollama => {
                 let client = rig::providers::ollama::Client::builder()
+                    .api_key(rig::client::Nothing)
                     .base_url(&config.api_base_url)
-                    .build();
+                    .build()?;
                 Ok(ProviderClient::Ollama(client))
             }
         }
@@ -90,9 +98,7 @@ impl ProviderClient {
         match self {
             ProviderClient::OpenAI(client) => {
                 let mut builder = client
-                    .completion_model(model)
-                    .completions_api()
-                    .into_agent_builder()
+                    .agent(model)
                     .preamble(system_prompt)
                     .max_tokens(config.max_tokens.into());
 
@@ -212,9 +218,7 @@ impl ProviderClient {
         match self {
             ProviderClient::OpenAI(client) => {
                 let mut builder = client
-                    .completion_model(model)
-                    .completions_api()
-                    .into_agent_builder()
+                    .agent(model)
                     .preamble(system_prompt)
                     .max_tokens(config.max_tokens.into());
 
@@ -366,7 +370,7 @@ impl ProviderClient {
         match self {
             ProviderClient::OpenAI(client) => {
                 let extractor = client
-                    .extractor_completions_api::<T>(model)
+                    .extractor::<T>(model)
                     .preamble(system_prompt)
                     .max_tokens(config.max_tokens.into())
                     .build();
@@ -448,14 +452,14 @@ impl ProviderClient {
 
 /// Unified Agent enum
 pub enum ProviderAgent {
-    OpenAI(Agent<rig::providers::openai::CompletionModel>),
+    OpenAI(Agent<rig::providers::openai::completion::CompletionModel>),
     Mistral(Agent<rig::providers::mistral::CompletionModel>),
     OpenRouter(Agent<rig::providers::openrouter::CompletionModel>),
     Anthropic(Agent<rig::providers::anthropic::completion::CompletionModel>),
     Gemini(Agent<rig::providers::gemini::completion::CompletionModel>),
     Moonshot(Agent<rig::providers::moonshot::CompletionModel>),
     DeepSeek(Agent<rig::providers::deepseek::CompletionModel>),
-    Ollama(Agent<rig::providers::ollama::CompletionModel<reqwest::Client>>),
+    Ollama(Agent<rig::providers::ollama::CompletionModel>),
 }
 
 impl ProviderAgent {
@@ -472,28 +476,6 @@ impl ProviderAgent {
             ProviderAgent::Ollama(agent) => agent.prompt(prompt).await.map_err(|e| e.into()),
         }
     }
-
-    /// Execute multi-turn dialogue
-    pub async fn multi_turn(
-        &self,
-        prompt: &str,
-        max_iterations: usize,
-    ) -> Result<String, PromptError> {
-        match self {
-            ProviderAgent::OpenAI(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-            ProviderAgent::Moonshot(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-            ProviderAgent::DeepSeek(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-            ProviderAgent::Mistral(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-            ProviderAgent::OpenRouter(agent) => {
-                agent.prompt(prompt).multi_turn(max_iterations).await
-            }
-            ProviderAgent::Anthropic(agent) => {
-                agent.prompt(prompt).multi_turn(max_iterations).await
-            }
-            ProviderAgent::Gemini(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-            ProviderAgent::Ollama(agent) => agent.prompt(prompt).multi_turn(max_iterations).await,
-        }
-    }
 }
 
 /// Unified Extractor enum
@@ -501,7 +483,7 @@ pub enum ProviderExtractor<T>
 where
     T: JsonSchema + for<'a> Deserialize<'a> + Serialize + Send + Sync + 'static,
 {
-    OpenAI(Extractor<rig::providers::openai::CompletionModel, T>),
+    OpenAI(Extractor<rig::providers::openai::completion::CompletionModel, T>),
     Mistral(Extractor<rig::providers::mistral::CompletionModel, T>),
     OpenRouter(Extractor<rig::providers::openrouter::CompletionModel, T>),
     Anthropic(Extractor<rig::providers::anthropic::completion::CompletionModel, T>),

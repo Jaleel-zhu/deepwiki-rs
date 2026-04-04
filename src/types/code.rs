@@ -81,6 +81,82 @@ where
     Ok(values)
 }
 
+fn deserialize_f64_lenient<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let result = match value {
+        serde_json::Value::Number(n) => n.as_f64().unwrap_or(0.0),
+        serde_json::Value::String(s) => s.parse::<f64>().unwrap_or(0.0),
+        serde_json::Value::Bool(v) => if v { 1.0 } else { 0.0 },
+        _ => 0.0,
+    };
+    Ok(result)
+}
+
+fn deserialize_usize_lenient<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let result = match value {
+        serde_json::Value::Number(n) => n.as_u64().unwrap_or(0) as usize,
+        serde_json::Value::String(s) => s.parse::<usize>().unwrap_or(0),
+        serde_json::Value::Bool(v) => if v { 1 } else { 0 },
+        _ => 0,
+    };
+    Ok(result)
+}
+
+fn deserialize_code_complexity_lenient<'de, D>(deserializer: D) -> Result<CodeComplexity, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    
+    // Handle the case where LLM returns a JSON object as a string
+    let json_value = match value {
+        serde_json::Value::String(s) => {
+            // Try to parse the string as JSON
+            serde_json::from_str::<serde_json::Value>(&s).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
+        }
+        other => other,
+    };
+    
+    // Extract fields with lenient handling
+    let cyclomatic_complexity = match json_value.get("cyclomatic_complexity") {
+        Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
+        Some(serde_json::Value::String(s)) => s.parse::<f64>().unwrap_or(0.0),
+        _ => 0.0,
+    };
+    
+    let lines_of_code = match json_value.get("lines_of_code") {
+        Some(serde_json::Value::Number(n)) => n.as_u64().unwrap_or(0) as usize,
+        Some(serde_json::Value::String(s)) => s.parse::<usize>().unwrap_or(0),
+        _ => 0,
+    };
+    
+    let number_of_functions = match json_value.get("number_of_functions") {
+        Some(serde_json::Value::Number(n)) => n.as_u64().unwrap_or(0) as usize,
+        Some(serde_json::Value::String(s)) => s.parse::<usize>().unwrap_or(0),
+        _ => 0,
+    };
+    
+    let number_of_classes = match json_value.get("number_of_classes") {
+        Some(serde_json::Value::Number(n)) => n.as_u64().unwrap_or(0) as usize,
+        Some(serde_json::Value::String(s)) => s.parse::<usize>().unwrap_or(0),
+        _ => 0,
+    };
+    
+    Ok(CodeComplexity {
+        cyclomatic_complexity,
+        lines_of_code,
+        number_of_functions,
+        number_of_classes,
+    })
+}
+
 fn deserialize_interfaces_lenient<'de, D>(deserializer: D) -> Result<Vec<InterfaceInfo>, D::Error>
 where
     D: Deserializer<'de>,
@@ -211,6 +287,7 @@ pub struct CodeInsight {
     /// Dependency information
     #[serde(default, deserialize_with = "deserialize_dependencies_lenient")]
     pub dependencies: Vec<Dependency>,
+    #[serde(default, deserialize_with = "deserialize_code_complexity_lenient")]
     pub complexity_metrics: CodeComplexity,
 }
 
@@ -277,9 +354,13 @@ impl Display for Dependency {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
 #[serde(default)]
 pub struct CodeComplexity {
+    #[serde(deserialize_with = "deserialize_f64_lenient")]
     pub cyclomatic_complexity: f64,
+    #[serde(deserialize_with = "deserialize_usize_lenient")]
     pub lines_of_code: usize,
+    #[serde(deserialize_with = "deserialize_usize_lenient")]
     pub number_of_functions: usize,
+    #[serde(deserialize_with = "deserialize_usize_lenient")]
     pub number_of_classes: usize,
 }
 
