@@ -1,5 +1,5 @@
 use crate::generator::preprocess::memory::{MemoryScope, ScopedKeys};
-use crate::generator::research::types::AgentType;
+use crate::generator::research::types::{AgentType, BoundaryAnalysisReport};
 use crate::generator::{
     context::GeneratorContext,
     step_forward_agent::{
@@ -16,7 +16,7 @@ pub struct BoundaryAnalyzer;
 
 #[async_trait]
 impl StepForwardAgent for BoundaryAnalyzer {
-    type Output = String; // Changed from BoundaryAnalysisReport to String for text-based output
+    type Output = BoundaryAnalysisReport;
 
     fn agent_type(&self) -> String {
         AgentType::BoundaryAnalyzer.to_string()
@@ -45,89 +45,75 @@ impl StepForwardAgent for BoundaryAnalyzer {
     fn prompt_template(&self) -> PromptTemplate {
         PromptTemplate {
             system_prompt:
-                r#"You are a professional system boundary interface analyst, focused on identifying and analyzing external call boundaries of software systems.
+                r#"You are a professional system boundary interface analyst. Your task is to identify and analyze external call boundaries of software systems.
 
-Your task is to identify and analyze based on the provided boundary-related code:
-1. CLI Command Line Interface - commands, parameters, options, usage examples
-2. API Interface - HTTP endpoints, request/response formats, authentication methods
-3. Router Routes - page router routes, URL paths, route parameters
-4. Integration Suggestions - best practices and example code
+## What to Look For:
 
-You may have access to existing product description, requirements and architecture documentation from external sources.
-If available:
-- Cross-reference code endpoints with documented API specifications
-- Validate authentication and authorization mechanisms
-- Use established API versioning and naming conventions
-- Reference documented integration patterns and examples
-- Identify any undocumented endpoints or missing documentation
+### CLI Commands (cli_boundaries)
+Look in Entry-type files for:
+- Command-line argument parsing (e.g., argparse, commander, clap, yargs)
+- Main function parameters
+- Process.argv usage
+- Environment variable reading
+- Configuration file loading
+- Any program startup options
 
-Focus on:
-- Extract boundary information from Entry, Api, Controller, Router type code
-- Analyze interface definitions, parameter structures, dependency relationships in the code
-- Identify mechanisms and methods for external systems to call this system
-- Provide practical integration guidance and security recommendations
+### API Interfaces (api_boundaries)  
+Look in Api/Controller-type files for:
+- HTTP route handlers
+- REST endpoints
+- GraphQL resolvers
+- RPC method definitions
+- Webhook handlers
 
-## Output Format:
-Generate a comprehensive boundary analysis document in Markdown format."#
+### Router Routes (router_boundaries)
+Look in Router-type files for:
+- URL path definitions
+- Route parameters
+- Page routing logic
+- Middleware chains
+
+### Configuration (can be documented as CLI or Integration)
+Look in Config-type files for:
+- Configuration parameters
+- Environment variables
+- Feature flags
+- Startup options
+
+## Important:
+- Even if code doesn't have explicit CLI/API definitions, extract what you can from entry points and config files
+- Document how users interact with the system (command line, config files, etc.)
+- If you find configuration parameters, document them as CLI boundaries or integration suggestions
+- NEVER leave all arrays empty if you have Entry or Config code - at minimum document the startup/configuration interface
+
+You MUST return a valid JSON object:
+{
+  "cli_boundaries": [...],
+  "api_boundaries": [...],
+  "router_boundaries": [...],
+  "integration_suggestions": [...],
+  "confidence_score": 0.0
+}
+
+Rules:
+- Include all top-level keys
+- Use empty arrays only if truly no boundaries exist
+- confidence_score: 0.0-10.0"#
                     .to_string(),
 
-            opening_instruction: "Analyze the system's boundary interfaces based on the following boundary-related code and project information:".to_string(),
+            opening_instruction: "Analyze the system's boundary interfaces based on the following code:".to_string(),
 
             closing_instruction: r#"
-## Document Structure Requirements:
-Please generate a comprehensive boundary analysis document in Markdown format:
+## Analysis Instructions:
+1. **Entry files**: Look for CLI arguments, environment variables, config loading - these ARE boundaries!
+2. **Config files**: Document configuration parameters as CLI boundaries or integration suggestions
+3. **No API/Router code?** That's fine - focus on CLI/configuration interfaces
+4. **Minimum output**: If you have Entry/Config code, document at least the startup interface
 
-```markdown
-# System Boundary Interface Analysis
-
-## 1. CLI Command Line Interfaces
-### 1.1 [Command Name]
-- **Description**: [What this command does]
-- **Arguments**: [List of arguments with types and descriptions]
-- **Options**: [Available flags and options]
-- **Examples**: [Usage examples]
-- **Source**: [File location]
-
-## 2. API Interfaces
-### 2.1 [Endpoint Name]
-- **Method**: [HTTP method]
-- **Endpoint**: [URL path]
-- **Description**: [What this API does]
-- **Request Format**: [Request body structure]
-- **Response Format**: [Response body structure]
-- **Authentication**: [Auth requirements if any]
-- **Source**: [File location]
-
-## 3. Router Routes
-### 3.1 [Route Name]
-- **Path**: [URL path]
-- **Description**: [What this route renders/handles]
-- **Parameters**: [Route parameters]
-- **Source**: [File location]
-
-## 4. Integration Suggestions
-### 4.1 [Integration Type]
-- **Description**: [How to integrate]
-- **Example Code**: [Code example]
-- **Best Practices**: [Recommendations]
-
-## 5. Summary
-- **Total CLI Commands**: [count]
-- **Total API Endpoints**: [count]
-- **Total Router Routes**: [count]
-- **Confidence Level**: [High/Medium/Low]
-```
-
-## Analysis Requirements:
-- Focus on Entry, Api, Controller, Config, Router type code
-- Extract specific boundary information from code structure and interface definitions
-- Generate practical usage examples and integration suggestions
-- Identify potential security risks and provide mitigation strategies
-- Ensure analysis results are accurate, complete, and practical
-- If a certain type of boundary interface does not exist, omit that section"#
+DO NOT return all empty arrays if you have Entry or Config code to analyze!"#
                 .to_string(),
 
-            llm_call_mode: LLMCallMode::Prompt, // Changed from Extract to Prompt
+            llm_call_mode: LLMCallMode::Extract,
 
             formatter_config: FormatterConfig::default(),
         }
@@ -156,11 +142,15 @@ Please generate a comprehensive boundary analysis document in Markdown format:
     /// Post-processing - output analysis summary
     fn post_process(
         &self,
-        _result: &String,
+        result: &BoundaryAnalysisReport,
         _context: &GeneratorContext,
     ) -> Result<()> {
-        println!("✅ Boundary interface analysis completed");
-        println!("   📄 Generated boundary analysis document in Markdown format");
+        println!("✅ Boundary interface analysis completed:");
+        println!("   - CLI commands: {} items", result.cli_boundaries.len());
+        println!("   - API interfaces: {} items", result.api_boundaries.len());
+        println!("   - Router routes: {} items", result.router_boundaries.len());
+        println!("   - Integration suggestions: {} items", result.integration_suggestions.len());
+        println!("   - Confidence: {:.1}/10", result.confidence_score);
 
         Ok(())
     }
@@ -287,7 +277,7 @@ impl BoundaryAnalyzer {
         content
     }
 
-    /// Add single boundary code insight item
+    /// Add single boundary code insight item with full context
     fn add_boundary_insight_item(&self, content: &mut String, insight: &CodeInsight) {
         content.push_str(&format!(
             "**File**: `{}` (Importance: {:.2}, Purpose: {:?})\n",
@@ -301,20 +291,42 @@ impl BoundaryAnalyzer {
         }
 
         if !insight.responsibilities.is_empty() {
-            content.push_str(&format!("- **Responsibilities**: {:?}\n", insight.responsibilities));
+            content.push_str(&format!("- **Responsibilities**: {}\n", insight.responsibilities.join(", ")));
         }
 
+        // Include detailed interface information for CLI/API extraction
         if !insight.interfaces.is_empty() {
-            content.push_str(&format!("- **Interfaces**: {:?}\n", insight.interfaces));
+            content.push_str("- **Interfaces/Functions**:\n");
+            for interface in &insight.interfaces {
+                content.push_str(&format!("  - `{}` ({})", interface.name, interface.interface_type));
+                if !interface.parameters.is_empty() {
+                    let params: Vec<String> = interface.parameters.iter()
+                        .map(|p| format!("{}: {}", p.name, p.param_type))
+                        .collect();
+                    content.push_str(&format!("({})", params.join(", ")));
+                }
+                if let Some(ref ret) = interface.return_type {
+                    content.push_str(&format!(" -> {}", ret));
+                }
+                content.push_str("\n");
+            }
         }
 
+        // Include dependencies for understanding external integrations
         if !insight.dependencies.is_empty() {
-            content.push_str(&format!("- **Dependencies**: {:?}\n", insight.dependencies));
+            content.push_str("- **Key Dependencies**: ");
+            let dep_names: Vec<&str> = insight.dependencies.iter()
+                .filter(|d| d.is_external)
+                .map(|d| d.name.as_str())
+                .take(10)
+                .collect();
+            content.push_str(&format!("{}\n", dep_names.join(", ")));
         }
 
+        // Always include source summary for boundary analysis
         if !insight.code_dossier.source_summary.is_empty() {
             content.push_str(&format!(
-                "- **Source Summary**:\n```\n{}\n```\n",
+                "- **Source Code**:\n```\n{}\n```\n",
                 insight.code_dossier.source_summary
             ));
         }
