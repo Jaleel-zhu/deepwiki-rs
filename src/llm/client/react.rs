@@ -9,8 +9,6 @@ pub struct ReActConfig {
     pub max_iterations: usize,
     /// Whether to enable verbose logging
     pub verbose: bool,
-    /// Whether to return partial results when max iterations reached
-    pub return_partial_on_max_depth: bool,
     /// Whether to enable summary reasoning fallover mechanism
     pub enable_summary_reasoning: bool,
 }
@@ -20,7 +18,6 @@ impl Default for ReActConfig {
         Self {
             max_iterations: 10,
             verbose: cfg!(debug_assertions),
-            return_partial_on_max_depth: true,
             enable_summary_reasoning: true,
         }
     }
@@ -62,22 +59,6 @@ impl ReActResponse {
     /// Create successfully completed response
     pub fn success(content: String, iterations_used: usize) -> Self {
         Self::new(content, iterations_used, false, Vec::new(), None)
-    }
-
-    /// Create response stopped by max depth (with chat history)
-    pub fn max_depth_reached_with_history(
-        content: String,
-        max_depth: usize,
-        tool_calls_history: Vec<String>,
-        chat_history: Vec<Message>,
-    ) -> Self {
-        Self::new(
-            content,
-            max_depth,
-            true,
-            tool_calls_history,
-            Some(chat_history),
-        )
     }
 
     /// Create response generated through summary reasoning

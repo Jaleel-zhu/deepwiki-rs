@@ -88,6 +88,10 @@ impl SummaryReasoner {
                 continue;
             }
             match message {
+                Message::System { content } => {
+                    details.push_str(&format!("## System Message [Round {}]\n", index + 1));
+                    details.push_str(&format!("{}\n\n", content));
+                }
                 Message::User { content } => {
                     // Handle user messages in more detail
                     details.push_str(&format!("## User Input [Round {}]\n", index + 1));
@@ -116,11 +120,14 @@ impl SummaryReasoner {
                                 has_content = true;
                             }
                             rig::completion::AssistantContent::Reasoning(reasoning) => {
-                                if !reasoning.reasoning.is_empty() {
-                                    let reasoning_text = reasoning.reasoning.join("\n");
+                                let reasoning_text = reasoning.display_text();
+                                if !reasoning_text.is_empty() {
                                     details.push_str(&format!("**Reasoning Process:** {}\n\n", reasoning_text));
                                     has_content = true;
                                 }
+                            }
+                            rig::completion::AssistantContent::Image(_) => {
+                                // Skip image content in summary
                             }
                         }
                     }

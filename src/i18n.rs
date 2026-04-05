@@ -518,20 +518,6 @@ impl TargetLanguage {
         }
     }
 
-    /// Max iterations reached
-    pub fn msg_max_iterations(&self) -> &'static str {
-        match self {
-            TargetLanguage::Chinese => "   ⚠️ 达到最大迭代次数 ({}), 触发中断",
-            TargetLanguage::English => "   ⚠️ Maximum iterations reached ({}), interrupting",
-            TargetLanguage::Japanese => "   ⚠️ 最大反復回数に達しました ({})、中断します",
-            TargetLanguage::Korean => "   ⚠️ 최대 반복 횟수 도달 ({}), 중단",
-            TargetLanguage::German => "   ⚠️ Maximale Iterationen erreicht ({}), unterbreche",
-            TargetLanguage::French => "   ⚠️ Nombre maximum d'itérations atteint ({}), interruption",
-            TargetLanguage::Russian => "   ⚠️ Достигнуто максимальное количество итераций ({}), прерывание",
-            TargetLanguage::Vietnamese => "   ⚠️ Đạt số lần lặp tối đa ({}), đang ngắt",
-        }
-    }
-
     /// Domain analysis failed
     pub fn msg_domain_analysis_failed(&self) -> &'static str {
         match self {
