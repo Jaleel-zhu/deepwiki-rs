@@ -48,16 +48,7 @@ impl CodeAnalyze {
                     static_insight.code_dossier.source_summary = code_clone.source_summary.to_owned();
 
                     // Use simplified LLM output structure for better reliability
-                    let llm_output = match extract::<CodeInsightLLMOutput>(&context_clone, agent_params).await {
-                        Ok(output) => output,
-                        Err(e) => {
-                            eprintln!(
-                                "⚠️ AI code insight failed for {}: {}. Falling back to static analysis.",
-                                code_clone.name, e
-                            );
-                            return Result::<CodeInsight>::Ok(static_insight);
-                        }
-                    };
+                    let llm_output = extract::<CodeInsightLLMOutput>(&context_clone, agent_params).await?;
 
                     // Merge LLM output into static insight
                     static_insight.merge_llm_output(llm_output);
