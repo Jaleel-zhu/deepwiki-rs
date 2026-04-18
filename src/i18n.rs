@@ -371,20 +371,6 @@ impl TargetLanguage {
         }
     }
 
-    /// AI service call error
-    pub fn msg_ai_service_error(&self) -> &'static str {
-        match self {
-            TargetLanguage::Chinese => "❌ 调用模型服务出错，尝试 {} 次均失败...{}",
-            TargetLanguage::English => "❌ AI service call failed after {} attempts...{}",
-            TargetLanguage::Japanese => "❌ モデルサービスの呼び出しに失敗しました。{} 回の試行に失敗...{}",
-            TargetLanguage::Korean => "❌ 모델 서비스 호출 오류, {} 번의 시도 모두 실패...{}",
-            TargetLanguage::German => "❌ Fehler beim Aufruf des Modell-Service, {} Versuche fehlgeschlagen...{}",
-            TargetLanguage::French => "❌ Erreur d'appel du service de modèle, {} tentatives échouées...{}",
-            TargetLanguage::Russian => "❌ Ошибка вызова модельного сервиса, {} попыток неудачно...{}",
-            TargetLanguage::Vietnamese => "❌ Lỗi gọi dịch vụ mô hình, thất bại sau {} lần thử...{}",
-        }
-    }
-
     /// Agent type display names
     pub fn msg_agent_type(&self, agent_type: &str) -> String {
         match agent_type {

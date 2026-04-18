@@ -124,7 +124,8 @@ impl LLMClient {
 
     /// Intelligent dialogue method (using default ReAct configuration)
     pub async fn prompt(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
-        let react_config = ReActConfig::default();
+        let mut react_config = ReActConfig::default();
+        react_config.concurrency = self.config.llm.tool_concurrency;
         let response = self
             .prompt_with_react(system_prompt, user_prompt, react_config)
             .await?;
@@ -136,11 +137,15 @@ impl LLMClient {
         &self,
         system_prompt: &str,
         user_prompt: &str,
-        react_config: ReActConfig,
+        mut react_config: ReActConfig,
     ) -> Result<ReActResponse> {
         let agent_builder = self.get_agent_builder();
         let agent = agent_builder.build_agent_with_tools(system_prompt);
         let model_name = self.config.llm.model_efficient.clone();
+
+        // Apply config settings
+        react_config.max_iterations = self.config.llm.max_turns;
+        react_config.concurrency = self.config.llm.tool_concurrency;
 
         let response = self
             .retry_with_backoff(|| async {
@@ -228,7 +233,7 @@ impl LLMClient {
         let agent_builder = self.get_agent_builder();
         let agent = agent_builder.build_agent_without_tools(system_prompt);
 
-        self.retry_with_backoff(|| async { agent.prompt(user_prompt).await.map_err(|e| e.into()) })
+        self.retry_with_backoff(|| async { agent.prompt(user_prompt, 1).await.map_err(|e| e.into()) })
             .await
     }
 }

@@ -172,6 +172,22 @@ pub struct LLMConfig {
     pub disable_preset_tools: bool,
 
     pub max_parallels: usize,
+
+    /// Maximum tool calling turns for agent with tools
+    #[serde(default = "default_max_turns")]
+    pub max_turns: usize,
+
+    /// Concurrency level for parallel tool execution
+    #[serde(default = "default_tool_concurrency")]
+    pub tool_concurrency: usize,
+}
+
+fn default_max_turns() -> usize {
+    30
+}
+
+fn default_tool_concurrency() -> usize {
+    4
 }
 
 /// Cache configuration
@@ -701,6 +717,8 @@ impl Default for LLMConfig {
             timeout_seconds: 300,
             disable_preset_tools: false,
             max_parallels: 3,
+            max_turns: 100,
+            tool_concurrency: 4,
         }
     }
 }
