@@ -210,12 +210,6 @@ pub struct CacheConfig {
 /// Boundary analysis configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BoundaryAnalysisConfig {
-    /// Maximum number of boundary code insights to analyze
-    /// Reducing this value can significantly speed up processing and reduce timeout risk
-    /// Default: 50
-    #[serde(default = "default_max_boundary_insights")]
-    pub max_boundary_insights: usize,
-
     /// Code insights limit for formatting
     /// Controls how many code insights are included in the prompt
     /// Default: 100
@@ -233,10 +227,6 @@ pub struct BoundaryAnalysisConfig {
     /// Default: 500
     #[serde(default = "default_files_threshold")]
     pub only_directories_when_files_more_than: Option<usize>,
-}
-
-fn default_max_boundary_insights() -> usize {
-    15  // Reduced default to avoid 504 timeouts on large codebases
 }
 
 fn default_code_insights_limit() -> usize {
@@ -741,7 +731,6 @@ impl Default for CacheConfig {
 impl Default for BoundaryAnalysisConfig {
     fn default() -> Self {
         Self {
-            max_boundary_insights: default_max_boundary_insights(),
             code_insights_limit: default_code_insights_limit(),
             include_source_code: default_false(),
             only_directories_when_files_more_than: default_files_threshold(),
@@ -757,7 +746,6 @@ mod tests {
     fn test_boundary_analysis_default_values() {
         let config = BoundaryAnalysisConfig::default();
         
-        assert_eq!(config.max_boundary_insights, 15);
         assert_eq!(config.code_insights_limit, 25);
         assert_eq!(config.include_source_code, false);
         assert_eq!(config.only_directories_when_files_more_than, Some(100));

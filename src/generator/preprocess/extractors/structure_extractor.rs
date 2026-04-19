@@ -1,11 +1,8 @@
 use crate::generator::context::GeneratorContext;
-use crate::generator::preprocess::agents::code_purpose_analyze::CodePurposeEnhancer;
-use crate::generator::preprocess::extractors::language_processors::LanguageProcessorManager;
-use crate::types::code::{CodeDossier, CodePurpose, CodePurposeMapper};
+use crate::generator::preprocess::agents::directory_scoring::DirectoryScorer;
 use crate::types::project_structure::ProjectStructure;
 use crate::types::{DirectoryInfo, FileInfo};
 use crate::utils::file_utils::{is_binary_file_path, is_test_directory, is_test_file};
-use crate::utils::sources::read_code_source;
 use anyhow::Result;
 use futures::future::BoxFuture;
 use std::collections::HashMap;
@@ -56,16 +53,14 @@ impl TopNHeap {
 
 /// Project structure extractor
 pub struct StructureExtractor {
-    language_processor: LanguageProcessorManager,
-    code_purpose_enhancer: CodePurposeEnhancer,
+    directory_scorer: DirectoryScorer,
     context: GeneratorContext,
 }
 
 impl StructureExtractor {
     pub fn new(context: GeneratorContext) -> Self {
         Self {
-            language_processor: LanguageProcessorManager::new(),
-            code_purpose_enhancer: CodePurposeEnhancer::new(),
+            directory_scorer: DirectoryScorer::new(),
             context,
         }
     }
@@ -127,6 +122,16 @@ impl StructureExtractor {
         });
         let total_files = files.len();
         let _ = total_files; // Used for ProjectStructure.total_files
+
+        // Apply LLM directory scoring boost to all directories
+        match self.directory_scorer.score_directories(&self.context, &directories).await {
+            Ok(dir_scores) => {
+                self.apply_directory_score_boost(&mut files, &dir_scores);
+            }
+            Err(e) => {
+                eprintln!("⚠️  Directory scoring failed: {}, skipping", e);
+            }
+        }
 
         // Calculate importance scores (scores already calculated during scan, just refine)
         self.calculate_importance_scores(&mut files, &mut directories);
@@ -320,13 +325,14 @@ impl StructureExtractor {
     fn calculate_file_importance_score(&self, file: &mut FileInfo) {
         let mut score: f64 = 0.0;
 
-        // Weight based on file location
+        // Weight based on file location (backend paths preferred)
         let path_str = file.path.to_string_lossy().to_lowercase();
-        if path_str.contains("src") || path_str.contains("lib") {
+        // Backend/Core paths get location bonus
+        if path_str.contains("cmd") || path_str.contains("internal") || path_str.contains("pkg") {
             score += 0.3;
         }
         if path_str.contains("main") || path_str.contains("index") {
-            score += 0.2;
+            score += 0.15;
         }
         if path_str.contains("config") || path_str.contains("setup") {
             score += 0.1;
@@ -334,26 +340,37 @@ impl StructureExtractor {
 
         // Weight based on file size
         if file.size > 1024 && file.size < 50 * 1024 {
-            score += 0.2;
+            score += 0.15;
         }
 
         // Weight based on file type
+        // Backend languages (higher priority): *.py, *.go, *.rs, *.java, *.kt, *.cpp, *.c, etc.
+        // Frontend languages (lower priority): *.ts, *.js, *.tsx, *.jsx, *.vue, *.svelte, etc.
         if let Some(ref ext) = file.extension {
             match ext.as_str() {
+                // Backend/Core languages - highest priority
                 "rs" | "py" | "java" | "kt" | "cpp" | "c" | "go" | "rb" | "php" | "m"
-                | "swift" | "dart" | "cs" => score += 0.3,
-                "jsx" | "tsx" => score += 0.3,
-                "js" | "ts" | "mjs" | "cjs" => score += 0.3,
-                "vue" | "svelte" => score += 0.3,
-                "wxml" | "ttml" | "ksml" => score += 0.3,
-                "sql" | "sqlproj" => score += 0.25,
+                | "swift" | "dart" | "cs" => score += 0.4,
+                // SQL and database files
+                "sql" | "sqlproj" => score += 0.3,
+                // Frontend frameworks (React/Vue/Svelte) - medium priority
+                "jsx" | "tsx" => score += 0.2,
+                "vue" | "svelte" => score += 0.2,
+                "wxml" | "ttml" | "ksml" => score += 0.2,
+                // JavaScript/TypeScript - lower priority
+                "js" | "ts" | "mjs" | "cjs" => score += 0.15,
+                // .NET project files
                 "csproj" | "sln" => score += 0.2,
-                "toml" | "yaml" | "yml" | "json" | "xml" | "ini" | "env" => score += 0.1,
+                // Build and package management files
                 "gradle" | "pom" => score += 0.15,
                 "package" => score += 0.15,
                 "lock" => score += 0.05,
-                "css" | "scss" | "sass" | "less" | "styl" | "wxss" => score += 0.1,
-                "html" | "htm" | "hbs" | "mustache" | "ejs" => score += 0.1,
+                // Configuration files
+                "toml" | "yaml" | "yml" | "json" | "xml" | "ini" | "env" => score += 0.1,
+                // Style files - lowest priority
+                "css" | "scss" | "sass" | "less" | "styl" | "wxss" => score += 0.05,
+                // Template files
+                "html" | "htm" | "hbs" | "mustache" | "ejs" => score += 0.05,
                 _ => {}
             }
         }
@@ -495,96 +512,21 @@ impl StructureExtractor {
         }
     }
 
-    /// Identify core files
-    pub async fn identify_core_codes(
+    /// Apply directory-level LLM score as an additive boost to file importance scores
+    fn apply_directory_score_boost(
         &self,
-        structure: &ProjectStructure,
-    ) -> Result<Vec<CodeDossier>> {
-        let mut core_codes = Vec::new();
-
-        // Sort all files by importance score in descending order
-        let mut all_files: Vec<_> = structure.files.iter().collect();
-        all_files.sort_by(|a, b| {
-            b.importance_score
-                .partial_cmp(&a.importance_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        // Limit to core_component_percentage of total files
-        let max_files = ((structure.files.len() as f64) * self.context.config.core_component_percentage / 100.0).ceil() as usize;
-        let core_files: Vec<_> = all_files.into_iter().take(max_files).collect();
-
-        for file in core_files {
-            let code_purpose = self.determine_code_purpose(file).await;
-
-            // Extract interface information
-            let interfaces = self.extract_file_interfaces(file).await.unwrap_or_default();
-            let interface_names: Vec<String> = interfaces.iter().map(|i| i.name.clone()).collect();
-
-            // Extract core code summary
-            let source_summary =
-                read_code_source(&self.language_processor, &structure.root_path, &file.path, &self.context.config.target_language, self.context.config.max_file_size as usize);
-
-            core_codes.push(CodeDossier {
-                name: file.name.clone(),
-                file_path: file.path.clone(),
-                source_summary,
-                code_purpose,
-                importance_score: file.importance_score,
-                description: None,           // Filled later through LLM analysis
-                functions: Vec::new(),       // Filled later through code analysis
-                interfaces: interface_names, // Interface names extracted from code analysis
-            });
-        }
-
-        Ok(core_codes)
-    }
-
-    async fn determine_code_purpose(&self, file: &FileInfo) -> CodePurpose {
-        // Read file content
-        let file_content = std::fs::read_to_string(&file.path).ok();
-
-        // Use enhanced component type analyzer
-        match self
-            .code_purpose_enhancer
-            .execute(
-                &self.context,
-                &file.path,
-                &file.name,
-                file_content.unwrap_or_default().as_str(),
-            )
-            .await
-        {
-            Ok(code_purpose) => code_purpose,
-            Err(_) => {
-                // Fallback to basic rule mapping
-                CodePurposeMapper::map_by_path_and_name(&file.path.to_string_lossy(), &file.name)
+        files: &mut [FileInfo],
+        dir_scores: &HashMap<PathBuf, f64>,
+    ) {
+        for file in files.iter_mut() {
+            // Find the parent directory of this file
+            if let Some(parent) = file.path.parent() {
+                if let Some(&dir_score) = dir_scores.get(parent) {
+                    // Add 0.1-0.2 boost based on directory score (multiplied by 0.2 for max boost)
+                    let boost = dir_score * 0.2;
+                    file.importance_score = (file.importance_score + boost).min(1.0);
+                }
             }
         }
-    }
-
-    /// Extract file interface information
-    async fn extract_file_interfaces(
-        &self,
-        file: &FileInfo,
-    ) -> Result<Vec<crate::types::code::InterfaceInfo>> {
-        // Build complete file path
-        let full_path = if file.path.is_absolute() {
-            file.path.clone()
-        } else {
-            file.path.clone()
-        };
-
-        // Try to read file content
-        if let Ok(content) = tokio::fs::read_to_string(&full_path).await {
-            // Use language processor to extract interfaces
-            let interfaces = self
-                .language_processor
-                .extract_interfaces(&full_path, &content);
-
-            return Ok(interfaces);
-        }
-
-        Ok(Vec::new())
     }
 }
