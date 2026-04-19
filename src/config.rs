@@ -68,6 +68,7 @@ impl std::str::FromStr for LLMProvider {
 
 /// Application configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 pub struct Config {
     /// Project name
     pub project_name: Option<String>,
