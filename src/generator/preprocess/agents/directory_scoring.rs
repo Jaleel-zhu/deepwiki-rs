@@ -63,7 +63,10 @@ impl DirectoryScorer {
         let prompt_sys = "You are a professional code architecture analyst specializing in evaluating the business importance of code directories.".to_string();
         let prompt_user = self.build_scoring_prompt(directories);
 
-        let cache_scope = "directory_scoring";
+        let cache_scope = format!(
+            "directory_scoring_{}",
+            context.config.project_path.to_string_lossy().replace(['/', '\\', ':', '.'], "_")
+        );
         let log_tag = format!("dir_score_{}", directories.len());
 
         let response: DirectoryScoringResponse = extract(
