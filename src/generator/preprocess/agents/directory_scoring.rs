@@ -73,10 +73,11 @@ impl DirectoryScorer {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
+        let project_path = &context.config.project_path;
         let dir_list: String = directories
             .iter()
             .take(5)
-            .map(|d| d.name.clone())
+            .map(|d| d.path.strip_prefix(project_path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| d.name.clone()))
             .collect::<Vec<_>>()
             .join(", ");
         let more = if directories.len() > 5 {

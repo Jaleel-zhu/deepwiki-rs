@@ -94,9 +94,6 @@ pub struct Config {
     /// Maximum recursion depth
     pub max_depth: u8,
 
-    /// Core component percentage
-    pub core_component_percentage: f64,
-
     /// Maximum file size limit (bytes)
     pub max_file_size: u64,
 
@@ -632,7 +629,6 @@ impl Default for Config {
             analyze_dependencies: true,
             identify_components: true,
             max_depth: 10,
-            core_component_percentage: 30.0,
             max_file_size: 512 * 1024, // 512KB
             include_tests: false,
             include_hidden: false,

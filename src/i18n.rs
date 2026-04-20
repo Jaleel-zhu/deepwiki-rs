@@ -358,6 +358,7 @@ impl TargetLanguage {
     }
 
     /// Cannot read file
+    #[allow(dead_code)]
     pub fn msg_cannot_read_file(&self) -> &'static str {
         match self {
             TargetLanguage::Chinese => "无法读取文件: {}",

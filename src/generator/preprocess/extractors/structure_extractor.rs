@@ -10,47 +10,6 @@ use std::fs::Metadata;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Heap that maintains top-N FileInfo items by importance_score
-/// Works around f64 not implementing Ord by using total ordering
-struct TopNHeap {
-    items: Vec<FileInfo>,
-    max_size: usize,
-}
-
-impl TopNHeap {
-    fn new(max_size: usize) -> Self {
-        Self {
-            items: Vec::new(),
-            max_size: max_size.max(1),
-        }
-    }
-
-    fn into_vec(self) -> Vec<FileInfo> {
-        self.items
-    }
-
-    fn push(&mut self, item: FileInfo) {
-        if self.items.len() < self.max_size {
-            self.items.push(item);
-            self.items.sort_by(|a, b| {
-                b.importance_score.partial_cmp(&a.importance_score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-        } else if let Some(last) = self.items.last() {
-            if item.importance_score > last.importance_score
-                || (item.importance_score == last.importance_score && item.importance_score.is_finite())
-            {
-                self.items.pop();
-                self.items.push(item);
-                self.items.sort_by(|a, b| {
-                    b.importance_score.partial_cmp(&a.importance_score)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-            }
-        }
-    }
-}
-
 /// Project structure extractor
 pub struct StructureExtractor {
     directory_scorer: DirectoryScorer,
@@ -88,9 +47,6 @@ impl StructureExtractor {
         let mut file_types = HashMap::new();
         let mut size_distribution = HashMap::new();
 
-        // Calculate max_core_files upfront for heap size
-        let max_core_files = ((self.context.config.core_component_percentage / 100.0).max(0.01).min(1.0) * 10000.0).ceil() as usize;
-
         // Get git tracked files for filtering (only if needed)
         let tracked_files = if self.context.config.git_tracked_only {
             self.get_tracked_files(project_path)
@@ -98,15 +54,15 @@ impl StructureExtractor {
             HashMap::new()
         };
 
-        // Use TopNHeap to limit memory: only keeps top N files during scan
-        let mut top_files_heap = TopNHeap::new(max_core_files);
+        // Collect all files during scan
+        let mut files = Vec::new();
 
         // Scan directory, extract internal directory and file structure and basic file information
         self.scan_directory(
             project_path,
             project_path,
             &mut directories,
-            &mut top_files_heap,
+            &mut files,
             &mut file_types,
             &mut size_distribution,
             &tracked_files,
@@ -115,8 +71,10 @@ impl StructureExtractor {
         )
         .await?;
 
-        // Extract and sort files from heap
-        let mut files = top_files_heap.into_vec();
+        // Sort directories lexicographically for deterministic ordering
+        directories.sort_by(|a, b| a.path.cmp(&b.path));
+
+        // Sort files by importance score
         files.sort_by(|a, b| {
             b.importance_score.partial_cmp(&a.importance_score).unwrap_or(std::cmp::Ordering::Equal)
         });
@@ -181,7 +139,7 @@ impl StructureExtractor {
         current_path: &'a PathBuf,
         root_path: &'a PathBuf,
         directories: &'a mut Vec<DirectoryInfo>,
-        files: &'a mut TopNHeap,
+        files: &'a mut Vec<FileInfo>,
         file_types: &'a mut HashMap<String, usize>,
         size_distribution: &'a mut HashMap<String, usize>,
         tracked_files: &'a HashMap<PathBuf, ()>,
@@ -222,7 +180,6 @@ impl StructureExtractor {
                             dir_file_count += 1;
                             dir_total_size += file_info.size;
 
-                            // Use heap to limit memory - only keeps top N by importance
                             files.push(file_info);
                         }
                     }
@@ -255,9 +212,6 @@ impl StructureExtractor {
             }
 
             // Create directory information
-            // TODO: directories are traversed in filesystem (inode) order, not lexicographic order.
-            // This causes non-deterministic dir_list in log_tag and may affect caching consistency.
-            // Consider sorting directories lexicographically after scan for reproducible behavior.
             if current_path != root_path {
                 let dir_info = DirectoryInfo {
                     path: current_path.clone(),
