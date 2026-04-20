@@ -75,6 +75,10 @@ pub struct Args {
     #[arg(long)]
     pub max_parallels: Option<usize>,
 
+    /// Tool concurrency parameter
+    #[arg(long)]
+    pub tool_concurrency: Option<usize>,
+
     /// LLM Provider (openai, mistral, openrouter, anthropic, deepseek)
     #[arg(long)]
     pub llm_provider: Option<String>,
@@ -197,6 +201,9 @@ impl Args {
         }
         if let Some(max_parallels) = self.max_parallels {
             config.llm.max_parallels = max_parallels;
+        }
+        if let Some(tool_concurrency) = self.tool_concurrency {
+            config.llm.tool_concurrency = tool_concurrency;
         }
         config.llm.disable_preset_tools = self.disable_preset_tools;
 
