@@ -35,5 +35,5 @@ litho.toml
 
 
 # IDE & Agent Project Settings
-.marscode/
-.omc/
+**/.marscode
+**/.omc
